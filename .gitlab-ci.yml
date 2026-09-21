@@ -1,0 +1,29 @@
+# 最小 CI（RFC-0002）：MR 静态检查+离线测试；tag 发布作业。
+# 镜像需含 git + python 3.11；pack.py 从 .workbuddy-plugin/ 打包多 plugin。
+stages: [check, release]
+
+check:
+  stage: check
+  image: python:3.11
+  script:
+    - pip install -r requirements-dev.txt
+    - python3 scripts/check.py
+    - python3 -m pytest tests/ -q
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+release:
+  stage: release
+  image: python:3.11
+  resource_group: release-dist      # 发布作业串行化
+  script:
+    - pip install -r requirements-dev.txt
+    - python3 scripts/check.py
+    - python3 -m pytest tests/ -q
+    - python3 scripts/pack.py --bundle sales-coach --target workbuddy --out dist/workbuddy
+  artifacts:
+    paths: [dist/]
+    expire_in: never      # 发布资产长期保留
+  rules:
+    - if: $CI_COMMIT_TAG
