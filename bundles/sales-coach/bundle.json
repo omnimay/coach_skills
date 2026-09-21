@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "sales-coach",
+  "version": "0.1.5",
+  "skills": [
+    "ai_customer_design",
+    "coach-mcp-connect"
+  ],
+  "presentation": {
+    "defaultLocale": "zh-CN",
+    "locales": {
+      "zh-CN": {
+        "name": "深维智讯・销售陪练",
+        "description": "AI 销售陪练与智能评测，支持场景化角色扮演、实时对话练习与能力分析，帮助销售快速提升实战沟通能力。",
+        "examples": [
+          "创建一个销售沟通训练课程",
+          "模拟客户进行角色扮演练习"
+        ]
+      },
+      "en": {
+        "name": "Sales Coach",
+        "description": "AI sales sparring and intelligent assessment with scenario-based role play, real-time dialogue practice and capability analysis.",
+        "examples": [
+          "Create a sales conversation training course",
+          "Practice role play with a simulated customer"
+        ]
+      }
+    },
+    "icon": "icon.svg"
+  },
+  "mcp": {
+    "servers": {
+      "enterprise-training": {
+        "transport": "streamable-http",
+        "url": "${MCP_URL}"
+      }
+    }
+  },
+  "targets": {
+    "workbuddy": {
+      "source": "sales-coach",
+      "type": "mcp",
+      "minVersion": "4.24.0"
+    }
+  }
+}
