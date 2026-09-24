@@ -143,6 +143,16 @@ class TestEnvResolution:
         result = run_pack(bundle_repo, "--bundle", "test-bundle")
         assert result.returncode == 0, result.stderr
 
+    def test_env_suffix_in_artifact_name(self, bundle_repo):
+        """产物文件名携带环境名。"""
+        (bundle_repo / "environments.json").write_text(json.dumps({
+            "test": {"MCP_URL": "https://test.example.com/mcp"},
+            "coach": {"MCP_URL": "https://coach.example.com/mcp"},
+        }))
+        run_pack(bundle_repo, "--bundle", "test-bundle", "--env", "coach")
+        assert (bundle_repo / "dist" / "workbuddy" / "test-bundle-v1.0.0-coach.zip").is_file()
+        assert not (bundle_repo / "dist" / "workbuddy" / "test-bundle-v1.0.0-test.zip").exists()
+
     def test_explicit_env(self, bundle_repo):
         """指定 coach 环境。"""
         (bundle_repo / "environments.json").write_text(json.dumps({
