@@ -10,73 +10,85 @@
 
 ```
 coachskills/
-├── skills/                          # 技能目录
-│   ├── ai_customer_design/                # MCP 培训技能
-│   │   ├── SKILL.md                 # 技能定义
-│   │   ├── references/              # 参考文档
-│   │   ├── scripts/                 # 脚本（render_qr.py）
-│   │   └── vendor/                  # 第三方依赖（segno）
-│   └── coach-mcp-connect/           # MCP 连接技能
-│       ├── SKILL.md                 # 技能定义
-│       └── scripts/                 # 脚本（mcp_diagnose.py）
+├── skills/                          # 技能目录（中立池，每个技能自包含）
+│   ├── ai_customer_design/                # 销售陪练：建课/改课/资料上传/练习交付
+│   ├── flashcard_design/                  # 学习闪卡：出题/验题/双发布模式
+│   ├── coach-mcp-connect/                 # 横切：用户侧连接恢复（随 bundle 分发，mcp_diagnose 自助诊断）
+│   ├── connect/                           # 横切：开发/运维侧完整 MCP 客户端与排障（不随 bundle 分发）
+│   └── connect/                           # 横切：开发/运维侧完整 MCP 客户端与排障（不随 bundle 分发）
 │
-├── bundles/                         # 技能包目录
-│   └── sales-coach/                 # 销售陪练包
-│       ├── bundle.json              # 通用定义（组合、版本、展示、连接）
-│       └── icon.svg                 # 包图标
+├── bundles/                         # 技能包目录（每个 bundle = 一个市场分发单元）
+│   ├── sales-coach/                 # 深维智讯・销售陪练（ai-customer + coach-mcp-connect）
+│   │   ├── bundle.json              # 通用定义（组合、版本、展示、连接、市场目标）
+│   │   ├── icon.svg                 # 包图标
+│   │   └── CONNECTOR.md             # 内部产品文档（端点/技能集/工具域）
+│   └── flashcard/                   # 深维智信·学习闪卡
+│       ├── bundle.json
+│       ├── icon.svg
+│       └── CONNECTOR.md
 │
-├── dist/                            # 构建产物（打包生成的 zip）
-│   └── workbuddy/
-│       └── sales-coach-v0.1.0.zip
-│
-├── scripts/                         # 维护脚本
+├── scripts/                         # 构建工具（不随包分发）
 │   ├── check.py                     # 静态检查
-│   ├── pack.py                      # 打包脚本
-│   ├── file_validator.py            # 文件边界校验（共享）
+│   ├── pack.py                      # 打包入口（--bundle / --target / --env）
+│   ├── file_validator.py            # 文件边界校验（敏感文件/路径穿越/临时文件）
 │   └── bundle_builder/              # 构建模块
-│       ├── bundle.py                # 通用层（配置读取、校验、ZIP 组装）
-│       └── workbuddy.py             # WorkBuddy 平台适配
+│       ├── bundle.py                # 通用层（配置读取、校验、ZIP 组装、确定性压缩）
+│       └── workbuddy.py             # WorkBuddy 平台适配（connector-meta/mcp 生成）
 │
-├── tests/                           # 测试用例
-├── docs/                            # 文档
+├── tests/                           # 测试用例（check / pack / bundle / workbuddy）
+├── docs/                            # 文档（RFC、迁移、规范、安装、发布手册）
 │   ├── rfcs/                        # RFC 文档
-│   └── migration/                   # 迁移记录
+│   ├── migration/                   # 迁移记录
+│   ├── installation/                # 平台安装指南
+│   └── releasing.md                 # 发布手册
 │
 ├── assets/                          # 静态资源
-│   └── GitHub项目主页封面横幅设计.jpeg  # 封面图片
-│
-├── environments.json                # 环境 URL 注册表（test / coach）
-├── README.md                        # 项目说明
-└── .gitignore
+├── environments.json                # 环境 URL 注册表（test / coach / dingtalk）
+├── README.md                        # 本文件
+├── INSTALL.md                       # 用户安装指南
+├── RELEASE-NOTES.md                 # 版本发布记录
+└── .gitlab-ci.yml                   # CI：MR 检查 + tag 发布
 ```
 
 ## 技能列表
 
 | 技能 | 说明 |
 | --- | --- |
-| [ai_customer_design](skills/ai_customer_design/SKILL.md) | 通过宿主 MCP 客户端连接 enterprise-training 服务，完成培训课程创建/修改/查询、文档上传、练习链接与二维码交付 |
-| [coach-mcp-connect](skills/coach-mcp-connect/SKILL.md) | 连接企业培训 MCP 服务器、执行工具调用、管理 catalog 的操作指南 |
+| [ai_customer_design](skills/ai_customer_design/SKILL.md) | 销售陪练：通过宿主 MCP 连接 enterprise-training，完成建课/改课/资料上传/练习链接与二维码交付 |
+| [flashcard_design](skills/flashcard_design/SKILL.md) | 学习闪卡：基于资料/主题出题、验题，按用户角色路由双发布模式（管理员编辑链接 / 学员自动练习） |
+| [coach-mcp-connect](skills/coach-mcp-connect/SKILL.md) | 横切：用户侧 MCP 连接恢复（bundle 安装后工具不可用时的自助诊断，`mcp_diagnose.py`） |
+| [connect](skills/connect/SKILL.md) | 横切：开发/运维侧完整 MCP 客户端（OAuth PKCE/流式调用/registry 命令，自含 `scripts/mcp_client.py`） |
 
 ## Bundle 列表
 
-| Bundle | 说明 | Skills |
-| --- | --- | --- |
-| [sales-coach](bundles/sales-coach/) | 深维智讯・销售陪练 | ai_customer_design, coach-mcp-connect |
+| Bundle | 说明 | Skills | 包格式 |
+| --- | --- | --- | --- |
+| [sales-coach](bundles/sales-coach/) | 深维智讯・销售陪练 | ai_customer_design, coach-mcp-connect | `sales-coach-v<version>-<env>.zip` |
+| [flashcard](bundles/flashcard/) | 深维智信·学习闪卡 | flashcard_design | `flashcard-v<version>-<env>.zip` |
 
-## 安装
+端点由 `environments.json` 按环境解析（test / coach / dingtalk），打包时注入 `bundle.json` 的 `${MCP_URL}` 占位符。
 
-安装步骤见各平台文档（本 README 不重复）：
-
-- WorkBuddy：见 `docs/releasing.md`
+| 环境 | MCP 端点 |
+|------|----------|
+| test | `https://mcp.test.omnimay.com/coach/mcp` |
+| coach | `https://mcp.omnimay.com/coach/mcp` |
+| dingtalk | `https://aicoach.eapps.dingtalkcloud.com/omnimay/coach/mcp` |
 
 ## 维护命令
 
 ```bash
-python3 scripts/check.py                  # 仓库静态检查
-python3 scripts/pack.py                   # 打包所有 bundle（默认 test 环境）
-python3 scripts/pack.py --bundle sales-coach  # 打包指定 bundle
-python3 scripts/pack.py --env coach       # 打包到 coach（正式）环境
+# 仓库静态检查（含技能通用化规则、bundle manifest 校验、文件边界）
+python3 scripts/check.py
+
+# 打包 bundle（默认 test 环境）
+python3 scripts/pack.py
+python3 scripts/pack.py --bundle flashcard          # 打包指定 bundle
+python3 scripts/pack.py --bundle sales-coach --env coach   # 指定 bundle + 环境
+python3 scripts/pack.py --env dingtalk              # 钉钉云环境
+python3 scripts/pack.py --out dist/custom           # 自定义产物目录
 ```
+
+产物命名：`<bundle>-v<version>-<env>.zip`（如 `flashcard-v1.0.0-coach.zip`），单源生成 connector-meta.json / mcp.json。打包前校验：bundle schema（semver/locale/icon）、WorkBuddy 约束（单 server、HTTPS、targets 字段）、skill 文件边界（路径穿越/敏感文件/临时文件）。产物 `dist/` 不入库。
 
 开发依赖与测试：
 
@@ -100,13 +112,13 @@ python3 -m pytest tests/ -q
 新增技能时运行验证：
 
 ```bash
-python3 scripts/check.py          # 全量检查（含新增技能的通用化规则）
+python3 scripts/check.py          # 全量检查
 python3 scripts/check.py --only frontmatter   # 只查 frontmatter 白名单
 python3 scripts/check.py --only host-terms    # 只查禁用术语
 python3 -m pytest tests/ -q       # 跑测试
 ```
 
-完整规则见 [RFC-0001 §3.14](docs/rfcs/completed/RFC-0001-superpowers-style-company-skills.md) 的"通用化设计原则"。首期迁移示例：[docs/migration/ai_customer_design.md](docs/migration/ai_customer_design.md)。
+完整规则见 [RFC-0001 §3.14](docs/rfcs/completed/RFC-0001-superpowers-style-company-skills.md)。
 
 ## 新增 Bundle
 
@@ -131,50 +143,14 @@ python3 -m pytest tests/ -q       # 跑测试
 | `presentation.locales.<locale>.description` | 是 | 该语言的描述 |
 | `presentation.locales.<locale>.examples` | 是 | 该语言的示例（可为空数组） |
 | `presentation.icon` | 是 | 图标文件名 |
-| `mcp.servers.<name>.transport` | 是 | 传输协议（`streamable-http` / `sse`） |
-| `mcp.servers.<name>.url` | 是 | 服务器 URL，支持 `${VAR}` 占位符 |
-| `targets.workbuddy.source` | WorkBuddy | 渠道身份标识 |
-| `targets.workbuddy.type` | WorkBuddy | 连接器类型（固定 `"mcp"`） |
-| `targets.workbuddy.minVersion` | WorkBuddy | 最低 WorkBuddy 版本 |
+| `mcp.servers` | 是 | MCP 端点定义（key=server 名，含 `transport` 与 `url`；`url` 支持 `${ENV_VAR}` 占位） |
+| `targets.workbuddy` | 是 | WorkBuddy 平台目标（`source` / `type` / `minVersion`） |
 
-### 环境变量
+构建流程详见 [RFC-0003](docs/rfcs/completed/RFC-0003-skill-bundle-refactoring.md) 与 [docs/releasing.md](docs/releasing.md)。
 
-URL 等环境相关的值使用 `${VAR}` 占位符，实际值在 `environments.json` 中按环境注册：
+## 安装
 
-```json
-{
-  "test": { "MCP_URL": "https://mcp.test.omnimay.com/coach/mcp" },
-  "coach": { "MCP_URL": "https://mcp.omnimay.com/coach/mcp" }
-}
-```
+各平台安装步骤见对应文档（本 README 不重复）：
 
-打包时通过 `--env` 选择环境，占位符被替换为对应值。缺失变量时打包报错。
-
-## 版本策略
-
-每个 bundle 维护一个版本，来源于其 `bundle.json` 的 `version` 字段。各平台产物继承该版本。
-
-**版本格式**：遵循 [SemVer](https://semver.org/)（`MAJOR.MINOR.PATCH`，如 `1.0.0`、`0.2.1`）。
-
-**版本升级规则**：
-- `MAJOR`：不兼容的配置变更（如 MCP 工具签名变化、删除功能）
-- `MINOR`：新增功能（向下兼容）
-- `PATCH`：修复问题（如 skill 文本修正、配置调整）
-
-**操作流程**：
-1. 修改对应 bundle 的 `bundle.json` 中的 `version` 字段
-2. 运行 `python3 scripts/pack.py --bundle <bundle-name>` 生成新版本 zip
-3. 提交到目标平台（新版本会作为新 connector 提交审核）
-
-**注意**：
-- 不同 bundle 版本独立，互不影响
-- 没有全局版本同步工具，直接编辑 JSON 文件即可
-- WorkBuddy 通过 `source` 字段识别同一 bundle 的不同版本，`source` 一旦设定不要更改
-- `connector-meta.json` 中的 `version` 字段由 pack.py 在打包时从 `bundle.json` 注入，源码中无需填写
-
-## 更多文档
-
-- RFC 索引：[docs/rfcs/](docs/rfcs/)
-- Bundle 打包指南（RFC-0003）：[docs/rfcs/completed/RFC-0003-skill-bundle-refactoring.md](docs/rfcs/completed/RFC-0003-skill-bundle-refactoring.md)
-- 发布手册：[docs/releasing.md](docs/releasing.md)
-- 迁移记录：[docs/migration/ai_customer_design.md](docs/migration/ai_customer_design.md)
+- WorkBuddy：见 [docs/releasing.md](docs/releasing.md)
+- 用户级使用：见 [INSTALL.md](INSTALL.md)

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "id": "flashcard",
+  "version": "1.0.0",
+  "skills": [
+    "flashcard_design"
+  ],
+  "presentation": {
+    "defaultLocale": "zh-CN",
+    "locales": {
+      "zh-CN": {
+        "name": "深维智信·学习闪卡",
+        "description": "学习闪卡是一种 AI 驱动的知识学习工具。将产品资料、课程文档或知识主题快速生成学习闪卡，支持选择题、问答题、朗读背诵等练习方式，帮助你快速掌握和巩固重点知识。支持 AI 出题、改题和调整题目数量。",
+        "examples": [
+          "基于我上传的产品资料出一套 8 道单选题的闪卡课",
+          "把这套闪卡改成 12 道题",
+          "给我这套闪卡的学习链接，我要在手机上练习",
+          "看看刚建的闪卡课程里都有哪些题目"
+        ]
+      },
+      "en": {
+        "name": "Megaview Flashcard Coach",
+        "description": "Flashcard Coach is an AI-powered knowledge learning tool. Generate study flashcards from product materials, course documents, or any knowledge topic, with multiple-choice, Q&A, and read-and-recite practice modes to help you master and reinforce key knowledge fast. AI writes and edits questions and adjusts question counts.",
+        "examples": [
+          "Create a flashcard course with 8 single-choice questions from my uploaded document",
+          "Change this flashcard set to 12 questions",
+          "Give me the learn URL so I can practice on my phone",
+          "Show me the questions in the flashcard course I just created"
+        ]
+      }
+    },
+    "icon": "icon.svg"
+  },
+  "mcp": {
+    "servers": {
+      "mgv-flashcard": {
+        "transport": "streamable-http",
+        "url": "${MCP_URL}"
+      }
+    }
+  },
+  "targets": {
+    "workbuddy": {
+      "source": "mgv-flashcard",
+      "type": "mcp",
+      "minVersion": "4.24.0"
+    }
+  }
+}

@@ -5,8 +5,8 @@
 
 用法：
     python3 scripts/pack.py                                    # 打包所有 bundle（默认 workbuddy）
-    python3 scripts/pack.py --bundle sales-coach               # 打包指定 bundle
-    python3 scripts/pack.py --bundle sales-coach --target workbuddy  # 指定目标平台
+    python3 scripts/pack.py --bundle flashcard                # 打包指定 bundle
+    python3 scripts/pack.py --bundle sales-coach --target workbuddy  # 打包指定 bundle+平台
     python3 scripts/pack.py --out dist/workbuddy               # 指定输出目录
 """
 import argparse
@@ -62,7 +62,13 @@ def discover_bundles(filter_names: list[str] | None) -> list[Path]:
     return bundles
 
 
-def pack_bundle(bundle_dir: Path, target: str, out_dir: Path, env_name: str, env_vars: dict[str, str] | None = None) -> str:
+def pack_bundle(
+    bundle_dir: Path,
+    target: str,
+    out_dir: Path,
+    env_vars: dict[str, str] | None = None,
+    env_name: str = "",
+) -> str:
     """打包单个 bundle 到指定目标平台，返回 zip 文件名。"""
     bundle = load_bundle(bundle_dir)
     validate_bundle(bundle)
@@ -83,7 +89,9 @@ def pack_bundle(bundle_dir: Path, target: str, out_dir: Path, env_name: str, env
 
     bundle_name = bundle["id"]
     version = bundle["version"]
-    zip_name = f"{bundle_name}-v{version}-{env_name}.zip"
+    # 产物名携带环境名，避免 test/coach 产物混淆
+    suffix = f"-{env_name}" if env_name else ""
+    zip_name = f"{bundle_name}-v{version}{suffix}.zip"
 
     entries: dict[Path, bytes] = {}
 
@@ -152,7 +160,7 @@ def main() -> None:
 
     packed = []
     for bundle_dir in bundles:
-        zip_name = pack_bundle(bundle_dir, args.target, out_dir, args.env, env_vars)
+        zip_name = pack_bundle(bundle_dir, args.target, out_dir, env_vars, args.env)
         packed.append(zip_name)
         print(f"✓ {bundle_dir.name} → {args.out}/{zip_name}")
 
