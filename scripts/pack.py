@@ -25,6 +25,7 @@ from bundle_builder.bundle import (
     resolve_placeholders,
 )
 from bundle_builder.workbuddy import (
+    generate_auth_profile,
     generate_connector_meta,
     generate_mcp_json,
     validate_workbuddy,
@@ -103,6 +104,12 @@ def pack_bundle(
     # mcp.json
     entries[Path("mcp.json")] = json.dumps(
         mcp_json, ensure_ascii=False, indent=2, sort_keys=True
+    ).encode("utf-8") + b"\n"
+
+    # auth-profile.json (RFC-0005)
+    auth_profile = generate_auth_profile(env_vars or {})
+    entries[Path("auth-profile.json")] = json.dumps(
+        auth_profile, ensure_ascii=False, indent=2, sort_keys=True
     ).encode("utf-8") + b"\n"
 
     # icon.svg

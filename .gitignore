@@ -5,3 +5,4 @@ __pycache__/
 # 本地开发环境
 .venv/
 .pytest_cache/
+mcp.json

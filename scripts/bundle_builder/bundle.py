@@ -101,7 +101,12 @@ def validate_bundle(bundle: dict[str, Any]) -> None:
 def validate_bundle_icon(bundle: dict[str, Any], bundle_dir: Path) -> None:
     """校验 icon 文件存在且非空。"""
     icon = bundle.get("presentation", {}).get("icon", "")
-    icon_path = bundle_dir / icon
+    icon_path = (bundle_dir / icon).resolve()
+    # 防止路径穿越：确保 icon 路径在 bundle_dir 内
+    try:
+        icon_path.relative_to(bundle_dir.resolve())
+    except ValueError:
+        fail(f"bundle.json 校验失败：icon 路径非法（包含路径穿越）：{icon}")
     if not icon_path.is_file():
         fail(f"bundle.json 校验失败：icon 文件不存在：{icon}")
     if icon_path.stat().st_size == 0:

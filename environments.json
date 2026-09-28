@@ -6,6 +6,7 @@
     "MCP_URL": "https://mcp.omnimay.com/coach/mcp"
   },
   "dingtalk": {
-    "MCP_URL": "https://aicoach.eapps.dingtalkcloud.com/omnimay/coach/mcp"
+    "MCP_URL": "https://aicoach.eapps.dingtalkcloud.com/omnimay/coach/mcp",
+    "AUTH_PROFILE": "[\"token\"]"
   }
 }

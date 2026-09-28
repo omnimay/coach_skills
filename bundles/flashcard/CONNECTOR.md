@@ -1,8 +1,8 @@
-# 连接器定义 · 深维智信·学习闪卡（flashcard）
+# 连接器定义 · 深维智讯·学习闪卡（flashcard）
 
 ## 定位
 
-闪卡类能力的**市场分发单元**：一个市场条目、一个 MCP 端点、一套技能、一份独立 catalog。覆盖知识点闪卡的创建（双发布模式）、修改与学习入口。
+闪卡类能力的**市场分发单元**：一个市场条目、一个 MCP 端点、一份独立 catalog。覆盖知识点闪卡的创建（权限分叉）、修改与学习入口。
 
 ## 状态：已接入
 
@@ -46,6 +46,6 @@ AI 客户课程类工具（`training.course.create_ai_customer` 等）**不在**
 
 | 场景 | 入口 |
 |------|------|
-| 学习闪卡（创建/编辑，双发布模式） | `skills/flashcard_design/SKILL.md` |
+| 学习闪卡（创建/编辑，权限分叉） | `skills/flashcard_design/SKILL.md` |
 | 自动练习模式（学员默认） | `skills/flashcard_design/references/create-auto.md` |
 | 编辑链接模式（管理员默认） | `skills/flashcard_design/references/create-manual.md` |
