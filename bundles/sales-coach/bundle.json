@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "sales-coach",
-  "version": "0.1.5",
+  "version": "1.0.1",
   "skills": [
     "ai_customer_design",
     "coach-mcp-connect"

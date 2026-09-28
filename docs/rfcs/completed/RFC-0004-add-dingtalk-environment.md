@@ -1,9 +1,11 @@
 # RFC-0004: 新增 dingtalk 打包环境
 
+> **注**：认证能力声明部分已被 [RFC-0005](RFC-0005-environment-auth-profile.md) 取代——"仅 token"从运行时行为变为打包时 `auth-profile.json` 声明。
+
 | 字段 | 值 |
 |------|-----|
 | 编号 | RFC-0004 |
-| 状态 | Completed |
+| 状态 | Completed（部分取代） |
 | 作者 | zoushen |
 | 日期 | 2026-09-17 |
 | 变体 | minimal |

@@ -10,8 +10,10 @@ Step 1: training.flashcard.create()
         注意：此时课程为空（0 题）——learnUrl 此刻还没有，不要宣告「课程创建成功」，
         只报中间态（如「课程骨架已就绪，正在出题…」）
 
-Step 2: (可选) training.file.upload_document(fileContent=base64, fileName=xx, knowledge_type=0)
-        → fileId → 轮询 training.file.status 至 parseStatus=2
+Step 2: (可选) 用户上传文档 → 调用脚本上传
+        python3 <技能安装目录>/flashcard_design/scripts/upload_document.py <文件路径>
+        → 返回 {"fileId": 7667, "status": "ready", ...}
+        → 轮询 training.file.status 至 parseStatus=2（脚本自动完成）
 
 Step 3: training.flashcard.update(courseId, message=用户原话, metadata.fileIds=[fileId])
         → taskId（status=running）
@@ -20,7 +22,7 @@ Step 4: 每 5 秒 training.flashcard.update_status(courseId, taskId)
         → status=done 时检查 response 是否为 GATE 方案确认请求
 
 Step 5: 若为 GATE → 向用户转述方案 → 用户同意后发送确认语再次 update
-        → 生成轮 1~2 分钟 → done 后 response 为最终结果
+        → 生成轮 5-10 分钟 → done 后 response 为最终结果
         （学员路径：内容达标后服务端自动建个人系列课，
          done 的 update_status 响应携带 seriesCourseId + learnUrl）
 

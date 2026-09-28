@@ -21,6 +21,7 @@ Note: This is a diagnostic tool. For business tool calls, use the host MCP clien
 import argparse
 import base64
 import hashlib
+import html
 import http.server
 import json
 import os
@@ -36,14 +37,9 @@ import webbrowser
 
 # ============================================================================
 # UTF-8 Encoding — prevent garbled output on Windows
+# Note: This wrapping is deferred to __main__ block to avoid interfering with
+# pytest's stdout/stderr capture mechanism during test collection.
 # ============================================================================
-
-if sys.stdout and hasattr(sys.stdout, 'buffer'):
-    import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-if sys.stderr and hasattr(sys.stderr, 'buffer'):
-    import io
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # ============================================================================
 # Configuration — 运行时从包内 mcp.json 读取，适配不同环境
@@ -53,17 +49,34 @@ if sys.stderr and hasattr(sys.stderr, 'buffer'):
 _override_mcp_url = None
 
 
-def _find_mcp_json():
-    """从脚本位置向上查找 mcp.json（在 ZIP 包根目录或开发目录根）。"""
+def _find_bundle_file(filename: str) -> str | None:
+    """从脚本位置向上查找 bundle 根目录中的指定文件（通用函数，RFC-0005）。"""
     current = os.path.dirname(os.path.abspath(__file__))
     for _ in range(6):
-        candidate = os.path.join(current, "mcp.json")
+        candidate = os.path.join(current, filename)
         if os.path.isfile(candidate):
             return candidate
         parent = os.path.dirname(current)
         if parent == current:
             break
         current = parent
+    return None
+
+
+def _find_mcp_json():
+    """从脚本位置向上查找 mcp.json（在 ZIP 包根目录或开发目录根）。"""
+    return _find_bundle_file("mcp.json")
+
+
+def _find_auth_profile() -> dict | None:
+    """从 bundle 根目录读取 auth-profile.json（RFC-0005）。"""
+    path = _find_bundle_file("auth-profile.json")
+    if path:
+        try:
+            with open(path, encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return None
     return None
 
 
@@ -92,28 +105,28 @@ def _load_config():
 
     if not mcp_url:
         print(
-            "ERROR: 无法确定 MCP URL。\n"
-            "请通过以下方式之一指定：\n"
-            "  1. 确保 mcp.json 在包根目录\n"
-            "  2. 使用 --mcp-url 参数",
+            "ERROR: Cannot determine MCP URL.\n"
+            "URL resolution sources (in priority order):\n"
+            "1. --mcp-url CLI parameter (if provided)\n"
+            "2. mcp.json mcpServers.*.url field\n\n"
+            "Please ensure at least one source provides a valid URL.",
             file=sys.stderr,
         )
         sys.exit(1)
 
+    # 从 MCP URL 手动构建 OAuth URL
+    # 注意：服务器端的 /.well-known/oauth-authorization-server 发现端点
+    # 返回的 URL 路径不正确（缺少 /coach 前缀），因此不使用发现端点
     parsed = urllib.parse.urlparse(mcp_url)
-
-    # 剥离尾部 /mcp 端点段，保留路径前缀（如 /coach）
     path = parsed.path.rstrip('/')
     if path.endswith('/mcp'):
         path = path[:-4]
 
-    base = f"{parsed.scheme}://{parsed.netloc}{path}"
-
     urls = {
         "mcp_url": mcp_url,
-        "register_url": f"{base}/oauth/register",
-        "token_url": f"{base}/oauth/token",
-        "authorize_url": f"{base}/oauth/authorize",
+        "register_url": f"{parsed.scheme}://{parsed.netloc}{path}/oauth/register",
+        "token_url": f"{parsed.scheme}://{parsed.netloc}{path}/oauth/token",
+        "authorize_url": f"{parsed.scheme}://{parsed.netloc}{path}/oauth/authorize",
         "resource": mcp_url,
     }
 
@@ -163,10 +176,10 @@ def get_resource():
 MCP_VERSION = "2025-03-26"
 REQUEST_TIMEOUT = 30  # 诊断工具不需要长超时
 
-CONFIG_DIR = os.path.expanduser("~/.config/coach-mcp-connect")
-CLIENT_FILE = os.path.join(CONFIG_DIR, "client.json")
-TOKENS_FILE = os.path.join(CONFIG_DIR, "tokens.json")
-SESSION_FILE = os.path.join(CONFIG_DIR, "session.json")
+if sys.platform == "win32":
+    CONFIG_DIR = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "coach-mcp-connect")
+else:
+    CONFIG_DIR = os.path.expanduser("~/.config/coach-mcp-connect")
 
 DEFAULT_CALLBACK_PORT = 8766
 CLIENT_NAME = "coach-mcp-connect-skill"
@@ -177,14 +190,30 @@ CLIENT_NAME = "coach-mcp-connect-skill"
 # ============================================================================
 
 
-def _ensure_config_dir():
-    """Create config directory with 0700 permissions."""
-    os.makedirs(CONFIG_DIR, mode=0o700, exist_ok=True)
+def _get_env_dir(mcp_url: str) -> str:
+    """根据 MCP URL 生成环境隔离目录（与 upload_document.py 一致）"""
+    domain = urllib.parse.urlparse(mcp_url).netloc
+    env_dir = os.path.join(CONFIG_DIR, domain)
+    os.makedirs(env_dir, mode=0o700, exist_ok=True)
+    return env_dir
 
 
-def _write_secure(path, data):
+def _get_client_file() -> str:
+    return os.path.join(_get_env_dir(get_mcp_url()), "client.json")
+
+
+def _get_tokens_file() -> str:
+    return os.path.join(_get_env_dir(get_mcp_url()), "tokens.json")
+
+
+def _get_session_file() -> str:
+    return os.path.join(_get_env_dir(get_mcp_url()), "session.json")
+
+
+def _write_secure(path: str, data) -> None:
     """Write JSON with 0600 permissions. Atomic via temp-then-rename."""
-    _ensure_config_dir()
+    dir_path = os.path.dirname(path)
+    os.makedirs(dir_path, mode=0o700, exist_ok=True)
     tmp_path = path + ".tmp"
     fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     try:
@@ -196,40 +225,43 @@ def _write_secure(path, data):
 
 
 def _read_secure(path):
-    """Read JSON from file. Returns None if not found."""
+    """Read JSON from file. Returns None if not found or corrupt."""
     if not os.path.isfile(path):
         return None
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
 
 
 def load_client():
-    return _read_secure(CLIENT_FILE)
+    return _read_secure(_get_client_file())
 
 
 def save_client(data):
-    _write_secure(CLIENT_FILE, data)
+    _write_secure(_get_client_file(), data)
 
 
 def load_tokens():
-    return _read_secure(TOKENS_FILE)
+    return _read_secure(_get_tokens_file())
 
 
 def save_tokens(data):
-    _write_secure(TOKENS_FILE, data)
+    _write_secure(_get_tokens_file(), data)
 
 
 def load_session():
-    return _read_secure(SESSION_FILE)
+    return _read_secure(_get_session_file())
 
 
 def save_session(data):
-    _write_secure(SESSION_FILE, data)
+    _write_secure(_get_session_file(), data)
 
 
 def clear_session():
     try:
-        os.remove(SESSION_FILE)
+        os.remove(_get_session_file())
     except FileNotFoundError:
         pass
 
@@ -242,9 +274,10 @@ def clear_session():
 def register_client(callback_port):
     """POST /oauth/register — RFC 7591 Dynamic Client Registration."""
     callback_uri = f"http://127.0.0.1:{callback_port}/callback"
+    redirect_uris = [f"http://127.0.0.1:{p}/callback" for p in range(callback_port, callback_port + 5)]
     body = json.dumps({
         "client_name": CLIENT_NAME,
-        "redirect_uris": [callback_uri],
+        "redirect_uris": redirect_uris,
         "grant_types": ["authorization_code", "refresh_token"],
         "response_types": ["code"],
         "token_endpoint_auth_method": "none"
@@ -321,7 +354,7 @@ def start_callback_server(port, expected_state, timeout=600):
                 self.send_response(400)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.end_headers()
-                self.wfile.write(f"<h1>Error: {query['error'][0]}</h1>".encode())
+                self.wfile.write(f"<h1>Error: {html.escape(query['error'][0])}</h1>".encode())
                 done.set()
                 return
 
@@ -424,43 +457,43 @@ def refresh_token(client_id, refresh_token_value):
 def get_valid_token():
     """获取有效的 access token。
 
-    认证优先级：
-    1. mcp.json 中的 headers.Authorization（如果存在）
-    2. 已保存的 OAuth token（自动 refresh）
-    3. 返回 None，提示用户执行 auth 命令
+    认证优先级由 auth-profile.json 的 supported_auth 数组决定（RFC-0005）。
+    无 profile 时默认 ["token", "oauth"]（匹配旧 bundle 行为）。
     """
-    # 1. 检查 mcp.json 的 headers.Authorization
-    auth_header = get_auth_header()
-    if auth_header:
-        # 提取 token（可能是 "Bearer xxx" 或直接 "sk_xxx"）
-        if auth_header.startswith("Bearer "):
-            return auth_header[7:]
-        return auth_header
+    profile = _find_auth_profile()
+    supported = profile["supported_auth"] if profile and "supported_auth" in profile else ["token", "oauth"]
 
-    # 2. 检查已保存的 OAuth token
-    tokens = load_tokens()
-    client = load_client()
+    for method in supported:
+        if method == "token":
+            auth_header = get_auth_header()
+            if auth_header:
+                if auth_header.startswith("Bearer "):
+                    return auth_header[7:]
+                return auth_header
+        elif method == "oauth":
+            tokens = load_tokens()
+            client = load_client()
+            if tokens and client:
+                access_token = tokens.get("access_token")
+                if access_token:
+                    return access_token
+                refresh_token_value = tokens.get("refresh_token")
+                client_id = client.get("client_id")
+                if refresh_token_value and client_id:
+                    try:
+                        new_tokens = refresh_token(client_id, refresh_token_value)
+                        return new_tokens.get("access_token")
+                    except Exception as e:
+                        print(f"Token refresh failed: {e}", file=sys.stderr)
+        else:
+            print(f"Warning: unknown auth method '{method}' in auth-profile.json, skipping", file=sys.stderr)
 
-    if not tokens or not client:
-        return None
-
-    # 尝试使用当前 token
-    access_token = tokens.get("access_token")
-    if access_token:
-        return access_token
-
-    # 尝试 refresh
-    refresh_token_value = tokens.get("refresh_token")
-    client_id = client.get("client_id")
-
-    if refresh_token_value and client_id:
-        try:
-            new_tokens = refresh_token(client_id, refresh_token_value)
-            return new_tokens.get("access_token")
-        except Exception as e:
-            print(f"Token refresh failed: {e}", file=sys.stderr)
-            return None
-
+    # token-only 环境且无 header：fail-fast 给出明确提示
+    if "token" in supported and "oauth" not in supported and not get_auth_header():
+        raise RuntimeError(
+            "当前环境需要静态 API key 认证。"
+            "请在 mcp.json 的 headers.Authorization 中配置 API key（通常以 sk_ 开头）。"
+        )
     return None
 
 
@@ -469,7 +502,21 @@ def get_valid_token():
 # ============================================================================
 
 
-def mcp_request(method, params=None, session_id=None):
+def _parse_sse_response(body: str) -> dict:
+    """Parse SSE response body, extract the last JSON-RPC message."""
+    result = {}
+    for line in body.splitlines():
+        if line.startswith("data: "):
+            try:
+                result = json.loads(line[6:])
+            except json.JSONDecodeError:
+                continue
+    if not result:
+        raise RuntimeError("No valid JSON-RPC message found in SSE response")
+    return result
+
+
+def mcp_request(method, params=None, session_id=None, _retry_on_401: bool = True):
     """Make a JSON-RPC request to MCP server."""
     is_notification = method.startswith("notifications/")
     payload = {"jsonrpc": "2.0", "method": method}
@@ -482,7 +529,7 @@ def mcp_request(method, params=None, session_id=None):
 
     req = urllib.request.Request(get_mcp_url(), data=body, method="POST")
     req.add_header("Content-Type", "application/json")
-    req.add_header("Accept", "application/json")
+    req.add_header("Accept", "application/json, text/event-stream")
 
     token = get_valid_token()
     if not token:
@@ -501,13 +548,18 @@ def mcp_request(method, params=None, session_id=None):
 
     try:
         with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+            content_type = resp.headers.get("Content-Type", "")
             response_body = resp.read().decode("utf-8")
             new_session_id = resp.headers.get("mcp-session-id")
 
             if not response_body.strip():
                 return None, new_session_id
 
-            result_msg = json.loads(response_body)
+            # Handle SSE response (text/event-stream)
+            if "text/event-stream" in content_type:
+                result_msg = _parse_sse_response(response_body)
+            else:
+                result_msg = json.loads(response_body)
 
             if "error" in result_msg:
                 error = result_msg["error"]
@@ -523,16 +575,34 @@ def mcp_request(method, params=None, session_id=None):
         # Handle 401: auth expired
         if e.code == 401:
             clear_session()
-            tokens = load_tokens()
-            client = load_client()
-            if tokens and tokens.get("refresh_token") and client:
-                try:
-                    refresh_token(client["client_id"], tokens["refresh_token"])
-                    return mcp_request(method, params, session_id=session_id)
-                except Exception:
-                    pass
+            if _retry_on_401:
+                tokens = load_tokens()
+                client = load_client()
+                if tokens and tokens.get("refresh_token") and client:
+                    try:
+                        refresh_token(client["client_id"], tokens["refresh_token"])
+                        return mcp_request(method, params, session_id=None, _retry_on_401=False)
+                    except Exception as e:
+                        raise RuntimeError(
+                            f"Script authentication failed (401).\n"
+                            f"Token refresh attempt failed: {e}\n\n"
+                            f"The script uses credentials from (in priority order):\n"
+                            f"1. headers.Authorization in mcp.json (if configured)\n"
+                            f"2. OAuth token cache (~/.config/coach-mcp-connect/<host>/tokens.json)\n\n"
+                            f"To fix:\n"
+                            f"- Run 'mcp_diagnose.py auth' to re-authenticate (refresh token may be expired)\n"
+                            f"- Or check mcp.json for an outdated Authorization header\n"
+                            f"- Verify mcp.json contains the correct MCP server URL"
+                        )
             raise RuntimeError(
-                "Authentication failed. Run 'auth' to re-authenticate."
+                "Script authentication failed (401).\n"
+                "The script uses credentials from (in priority order):\n"
+                "1. headers.Authorization in mcp.json (if configured)\n"
+                "2. OAuth token cache (~/.config/coach-mcp-connect/<host>/tokens.json)\n\n"
+                "To fix:\n"
+                "- Run 'mcp_diagnose.py auth' to refresh your OAuth token\n"
+                "- Or check mcp.json for an outdated Authorization header\n"
+                "- Verify mcp.json contains the correct MCP server URL"
             )
 
         # Handle 404 with "Session not found"
@@ -633,29 +703,52 @@ def registry_publish(catalog, expected_version):
 
 def cmd_auth(args):
     """Handle auth command."""
+    profile = _find_auth_profile()
+    supported = profile["supported_auth"] if profile and "supported_auth" in profile else ["token", "oauth"]
+
     if args.status:
-        # 检查 mcp.json 的 headers.Authorization
+        # Show auth profile info (RFC-0005)
+        print(f"Auth profile: {supported}")
+
+        # Check for static Authorization header in mcp.json (takes priority over OAuth)
         auth_header = get_auth_header()
+        if auth_header:
+            print("⚠️  mcp.json contains static Authorization header.", file=sys.stderr)
+            print("   This takes priority over OAuth token cache per auth profile order.", file=sys.stderr)
+            print("   Run: grep -i 'Authorization' mcp.json", file=sys.stderr)
+            print(file=sys.stderr)
+
+        # 检查 mcp.json 的 headers.Authorization
         tokens = load_tokens()
         client = load_client()
         oauth_ok = bool(tokens and client)
 
         if auth_header and oauth_ok:
-            print("✓ Using headers.Authorization from mcp.json (priority over OAuth)")
+            print("Using headers.Authorization from mcp.json (priority over OAuth)")
             client_id = (client or {}).get("client_id", "unknown")
             print(f"  OAuth tokens also present (client: {client_id})")
-            print(f"  Config dir: {CONFIG_DIR}")
+            print(f"  Config dir: {_get_env_dir(get_mcp_url())}")
         elif auth_header:
             token_preview = auth_header[:20] + "..." if len(auth_header) > 20 else auth_header
-            print(f"✓ Using headers.Authorization from mcp.json ({token_preview})")
+            print(f"Using headers.Authorization from mcp.json ({token_preview})")
         elif oauth_ok:
             client_id = (client or {}).get("client_id", "unknown")
             print(f"✓ OAuth authenticated (client: {client_id})")
-            print(f"  Config dir: {CONFIG_DIR}")
+            print(f"  Config dir: {_get_env_dir(get_mcp_url())}")
         else:
             print("✗ Not authenticated")
             print("  Run 'auth' for OAuth or configure headers.Authorization in mcp.json")
         return
+
+    # token-only 环境：跳过 OAuth，直接提示配置 key（RFC-0005）
+    if "oauth" not in supported:
+        if get_auth_header():
+            print("✓ 当前环境使用静态 API key 认证（已配置）。")
+            sys.exit(0)
+        else:
+            print("当前环境不支持 OAuth。请在 mcp.json 的 headers.Authorization 中配置 API key。")
+            print("联系管理员获取 API key（通常以 sk_ 开头）。")
+            sys.exit(1)
 
     # 如果 mcp.json 已有 headers.Authorization，提示用户
     auth_header = get_auth_header()
@@ -664,6 +757,32 @@ def cmd_auth(args):
         print("OAuth is not needed when using token-based authentication.")
         print("If you still want to use OAuth, continue below:")
         print()
+
+    # 旧配置迁移：检测 HTTPS → HTTP 和端口变化
+    client_file = _get_client_file()
+    tokens_file = _get_tokens_file()
+    if os.path.exists(client_file):
+        with open(client_file) as f:
+            client = json.load(f)
+
+        existing_uris = client.get("redirect_uris", [])
+        needs_reregister = any(uri.startswith("https://") for uri in existing_uris)
+
+        old_callback_uri = client.get("_callback_uri", "")
+        if old_callback_uri.startswith("https://"):
+            needs_reregister = True
+
+        current_port = args.port if hasattr(args, 'port') and args.port else DEFAULT_CALLBACK_PORT
+        registered_ports = [uri.split(":")[2].split("/")[0] for uri in existing_uris if ":" in uri]
+        if registered_ports and str(current_port) not in registered_ports:
+            print(f"Port changed from {registered_ports} to {current_port}. Re-registering...", file=sys.stderr)
+            needs_reregister = True
+
+        if needs_reregister:
+            print("Detected old HTTPS callback URI or port change. Re-registering with HTTP...", file=sys.stderr)
+            os.remove(client_file)
+            if os.path.exists(tokens_file):
+                os.remove(tokens_file)
 
     # Start OAuth flow
     port = args.port or DEFAULT_CALLBACK_PORT
@@ -752,7 +871,26 @@ def cmd_auth(args):
             client["_callback_uri"]
         )
         print(f"✓ Authentication successful!", file=sys.stderr)
-        print(f"  Tokens saved to {TOKENS_FILE}", file=sys.stderr)
+        print(f"✓ Tokens saved to {_get_tokens_file()}", file=sys.stderr)
+
+        # Output Authorization header value for MCP client configuration
+        if tokens and tokens.get("access_token"):
+            token = tokens["access_token"]
+            if token.startswith("sk_"):
+                auth_value = token
+            else:
+                auth_value = f"Bearer {token}"
+
+            print("\n" + "━" * 40, file=sys.stderr)
+            print("MCP Client 配置 Token（有效期约 15 天）:", file=sys.stderr)
+            print("━" * 40, file=sys.stderr)
+            print(f"\nAuthorization header 值: {auth_value}\n", file=sys.stderr)
+            print("请将上述 **值部分** 配置到你的 MCP client 的 headers.Authorization 字段。\n", file=sys.stderr)
+            print("示例配置:", file=sys.stderr)
+            print('  "headers": {', file=sys.stderr)
+            print(f'    "Authorization": "{auth_value}"', file=sys.stderr)
+            print('  }\n', file=sys.stderr)
+            print("Token 过期后（MCP 调用返回 401），重新运行本命令完成浏览器 OAuth 授权。", file=sys.stderr)
     except Exception as e:
         print(f"Failed to exchange code for tokens: {e}", file=sys.stderr)
         sys.exit(1)
@@ -831,4 +969,12 @@ def main():
 
 
 if __name__ == "__main__":
+    # Wrap stdout/stderr with UTF-8 encoding to prevent garbled output on Windows.
+    # This is done here (not at module level) to avoid interfering with pytest's
+    # capture mechanism during test collection.
+    import io
+    if sys.stdout and hasattr(sys.stdout, 'buffer'):
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    if sys.stderr and hasattr(sys.stderr, 'buffer'):
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
     main()

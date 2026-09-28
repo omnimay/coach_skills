@@ -6,7 +6,7 @@
 
 > **核心规则：`update` 发送成功（秒返 taskId）就不要重复提交，无论结果是否确定。**
 >
-> 完整表格见 [SKILL.md §关键业务规则](../SKILL.md#关键业务规则)
+> 完整表格见 [SKILL.md](../SKILL.md)
 
 **关键判断**：
 - 字段发生变化 ≠ 满足用户要求（可能改错了）
@@ -61,7 +61,7 @@ Step 2: ai_customer.update → 发送修改诉求
   → 秒返 {"taskId":"xxx", "status":"running"}
   → ⚠️ 建课完成后 ~60s 冷却期内发改课 update 可能遇到 50003：
     等 60s 后重试，最多 3 次
-  → 50002（agent 调用失败）→ 重试一次，仍失败则报告
+  → 50002（agent 调用失败）→ 先用 `ai_customer.get` 验证内容是否已就绪（写库与状态翻转存在竞态），未就绪则等 ≥60s 改写消息重试 1 次，仍失败则报告
 
 Step 3: ai_customer.update_status → 轮询直到 status="done" 或 "failed"
   → 每 5 秒一次
@@ -73,7 +73,7 @@ Step 4: ai_customer.get → 验证修改是否真的生效
   → 验证通过 → Step 5
   → 验证失败 → 重试 Step 2-3，最多 3 次，仍无变化 → 告知用户
 
-Step 5: task.create_open_project → 生成新链接 → 双交付
+Step 5: training.task.create_open_project → 生成新链接 → 双交付
 ```
 
 **能力边界**：AI 助手能修改角色、阶段、评分等课程配置；**不能**改 roundLimit/timeLimit 等运行参数。
@@ -89,39 +89,52 @@ Step 5: task.create_open_project → 生成新链接 → 双交付
 | `training.task.create_open_project` | 生成练习链接 | `{"courseId":123}` |
 | `training.course.list` | 课程列表 | `{}` 或 `{"categoryId":0}` |
 | `training.task.get_detail_list` | 学员练习明细 | `{"source":1}` |
-| `training.file.upload_document` | 上传文档文件 | 见 [file-upload.md](file-upload.md) |
+| `training.file.upload_document` | 上传文档文件（**仅通过脚本调用**） | 见 [file-upload.md](file-upload.md) |
 | `training.file.status` | 查询文件解析状态 | 见 [file-upload.md](file-upload.md) |
 | `training.enum.lookup` | 枚举值查询 | 工具名用**点号分隔**（非下划线 `enum_lookup`） |
-| `organization.info_get` | 企业信息 | `{}` |
+| `training.organization.tree` | 组织树查询 | `{}` |
 
 查询类请求（课程列表、练习明细、企业信息）直接调用对应工具后汇总答复；与培训课程无关的请求不启动培训流程。
 
 ## 练习链接与二维码交付（缺一不可）
 
-拿到 `task.create_open_project` 返回的 link 后，**必须在同一条回复中**同时完成两件事：
+拿到 `training.task.create_open_project` 返回的 link 后，**必须在同一条回复中**同时完成两件事：
 
 ### ① 可复制的纯文本链接（必达项）
 
 例如：`🔗 练习链接（可复制）：<链接>`。用户需要把链接转发给他人或粘贴到手机；纯文本链接也是二维码无法展示时的兜底。
 
-### ② 二维码图片（增强项，宿主有 Python 运行时时）
+### ② 二维码图片（必达项）
 
 ```bash
-python3 <skill-root>/scripts/render_qr.py '<练习链接>' --out '<可写目录>/practice.png'
+python3 <技能安装目录>/ai_customer_design/scripts/render_qr.py '<练习链接>' --out '<可写目录>/practice.png'
 ```
 
-- 成功：脚本打印生成的 PNG 路径（不指定 `--out` 时默认写系统临时目录），向用户展示该图片
+脚本成功后会打印 PNG 文件的**绝对路径**（不指定 `--out` 时默认写系统临时目录）。
+
+**展示方式要按宿主能力自适应选择**（agent 自己支持哪种就用哪种）：
+
+| 优先级 | 方式 | 适用宿主 |
+|---|---|---|
+| 1 | 文件读取并渲染 PNG 文件 | 支持图片渲染的宿主 |
+| 2 | Markdown 图片语法（需使用可访问的图片地址） | 支持 markdown 图片渲染的 Web/IM |
+| 3 | 富媒体卡片 / 附件 | 宿主提供富媒体附件能力 |
+| 4 | 输出 PNG 绝对路径 + 文字说明 | 无图片渲染能力的宿主（兜底，**不可省略**） |
+
+- 成功：按上表选择宿主支持的最佳方式展示
 - 依赖不可用（E-HOST- 类错误码，非零退出并回显原始链接）：宿主无 Python 运行时——**直接向用户展示原始练习链接**，并说明二维码步骤失败
 - 参数或输出目录问题（E-USER- 类错误码，非零退出）：修正后重跑一次
 
 ### 禁止做法
 
-- ❌ 只输出二维码图片但不附原始链接文本
+- ❌ 只输出链接文本、不渲染二维码图片
+- ❌ 只生成二维码文件但不做任何形式的展示（用户必须能直接看到图片，或至少拿到图片路径）
 - ❌ 大模型直接生成 ASCII/Unicode 二维码（极易出错）——必须用脚本渲染
 - ❌ 链接/二维码生成后不展示，直接进入下一个任务
+- ❌ 在无法渲染图片的宿主上仍只走文件读取路径而不下探兜底
 
-QR 不可用时练习链接本身已是有效交付：链接必达即业务完成，二维码缺失如实报告为增强项缺失。
+QR 不可用时仍须将练习链接原文展示给用户，并如实报告二维码未能生成（属于交付不完整，需排查 Python 运行时或脚本问题）。
 
 ## 实测经验标注（M07）
 
-本文量化经验（3-6 分钟建课、60s 冷却期、20 分钟轮询上限、3 门并发正常）适用日期 **2026-09-21**，**测试环境（服务版本未记录）**，为阶段性实测结论，不得直接断言为服务端确定行为；生产环境或服务升级后需复测更新。
+本文量化经验（5-10 分钟建课、60s 冷却期、20 分钟轮询上限、3 门并发正常）适用日期 **2026-09-21**，**测试环境（服务版本未记录）**，为阶段性实测结论，不得直接断言为服务端确定行为；生产环境或服务升级后需复测更新。

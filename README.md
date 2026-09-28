@@ -12,17 +12,15 @@
 coachskills/
 ├── skills/                          # 技能目录（中立池，每个技能自包含）
 │   ├── ai_customer_design/                # 销售陪练：建课/改课/资料上传/练习交付
-│   ├── flashcard_design/                  # 学习闪卡：出题/验题/双发布模式
-│   ├── coach-mcp-connect/                 # 横切：用户侧连接恢复（随 bundle 分发，mcp_diagnose 自助诊断）
-│   ├── connect/                           # 横切：开发/运维侧完整 MCP 客户端与排障（不随 bundle 分发）
-│   └── connect/                           # 横切：开发/运维侧完整 MCP 客户端与排障（不随 bundle 分发）
+│   ├── flashcard_design/                  # 学习闪卡：出题/验题/权限分叉
+│   └── coach-mcp-connect/                 # 横切：用户侧连接恢复（随 bundle 分发，mcp_diagnose 自助诊断）
 │
 ├── bundles/                         # 技能包目录（每个 bundle = 一个市场分发单元）
 │   ├── sales-coach/                 # 深维智讯・销售陪练（ai-customer + coach-mcp-connect）
 │   │   ├── bundle.json              # 通用定义（组合、版本、展示、连接、市场目标）
 │   │   ├── icon.svg                 # 包图标
 │   │   └── CONNECTOR.md             # 内部产品文档（端点/技能集/工具域）
-│   └── flashcard/                   # 深维智信·学习闪卡
+│   └── flashcard/                   # 深维智讯·学习闪卡
 │       ├── bundle.json
 │       ├── icon.svg
 │       └── CONNECTOR.md
@@ -55,16 +53,15 @@ coachskills/
 | 技能 | 说明 |
 | --- | --- |
 | [ai_customer_design](skills/ai_customer_design/SKILL.md) | 销售陪练：通过宿主 MCP 连接 enterprise-training，完成建课/改课/资料上传/练习链接与二维码交付 |
-| [flashcard_design](skills/flashcard_design/SKILL.md) | 学习闪卡：基于资料/主题出题、验题，按用户角色路由双发布模式（管理员编辑链接 / 学员自动练习） |
+| [flashcard_design](skills/flashcard_design/SKILL.md) | 学习闪卡：基于资料/主题出题、验题，按用户角色路由权限分叉（管理员编辑链接 / 学员自动练习） |
 | [coach-mcp-connect](skills/coach-mcp-connect/SKILL.md) | 横切：用户侧 MCP 连接恢复（bundle 安装后工具不可用时的自助诊断，`mcp_diagnose.py`） |
-| [connect](skills/connect/SKILL.md) | 横切：开发/运维侧完整 MCP 客户端（OAuth PKCE/流式调用/registry 命令，自含 `scripts/mcp_client.py`） |
 
 ## Bundle 列表
 
 | Bundle | 说明 | Skills | 包格式 |
 | --- | --- | --- | --- |
 | [sales-coach](bundles/sales-coach/) | 深维智讯・销售陪练 | ai_customer_design, coach-mcp-connect | `sales-coach-v<version>-<env>.zip` |
-| [flashcard](bundles/flashcard/) | 深维智信·学习闪卡 | flashcard_design | `flashcard-v<version>-<env>.zip` |
+| [flashcard](bundles/flashcard/) | 深维智讯·学习闪卡 | flashcard_design, coach-mcp-connect | `flashcard-v<version>-<env>.zip` |
 
 端点由 `environments.json` 按环境解析（test / coach / dingtalk），打包时注入 `bundle.json` 的 `${MCP_URL}` 占位符。
 
@@ -88,7 +85,7 @@ python3 scripts/pack.py --env dingtalk              # 钉钉云环境
 python3 scripts/pack.py --out dist/custom           # 自定义产物目录
 ```
 
-产物命名：`<bundle>-v<version>-<env>.zip`（如 `flashcard-v1.0.0-coach.zip`），单源生成 connector-meta.json / mcp.json。打包前校验：bundle schema（semver/locale/icon）、WorkBuddy 约束（单 server、HTTPS、targets 字段）、skill 文件边界（路径穿越/敏感文件/临时文件）。产物 `dist/` 不入库。
+产物命名：`<bundle>-v<version>-<env>.zip`（如 `flashcard-v1.0.1-coach.zip`），单源生成 connector-meta.json / mcp.json。打包前校验：bundle schema（semver/locale/icon）、WorkBuddy 约束（单 server、HTTPS、targets 字段）、skill 文件边界（路径穿越/敏感文件/临时文件）。产物 `dist/` 不入库。
 
 开发依赖与测试：
 

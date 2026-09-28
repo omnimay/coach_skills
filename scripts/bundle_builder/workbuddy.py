@@ -1,4 +1,5 @@
 """WorkBuddy 平台字段映射和校验（RFC-0003）。"""
+import json
 import sys
 from typing import Any, NoReturn
 
@@ -76,6 +77,22 @@ def generate_mcp_json(bundle: dict[str, Any]) -> dict[str, Any]:
             "url": conf["url"],
         }
     return result
+
+
+def generate_auth_profile(env_vars: dict[str, str]) -> dict[str, Any]:
+    """从环境配置生成 auth-profile.json（RFC-0005）。"""
+    auth_profile_raw = env_vars.get("AUTH_PROFILE")
+    if not auth_profile_raw:
+        return {"supported_auth": ["token", "oauth"]}
+    try:
+        profile = json.loads(auth_profile_raw)
+    except (json.JSONDecodeError, TypeError) as e:
+        fail(f"AUTH_PROFILE JSON 解析失败：{e}")
+    if not isinstance(profile, list) or not profile or not all(
+        isinstance(m, str) for m in profile
+    ):
+        fail("AUTH_PROFILE 必须是非空字符串数组")
+    return {"supported_auth": profile}
 
 
 def _transport_to_type(transport: str) -> str:

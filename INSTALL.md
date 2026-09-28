@@ -1,10 +1,10 @@
-# 深维智信·学习闪卡 · MCP 安装指南
+# 深维智讯·学习闪卡 · MCP 安装指南
 
 ## 1. 在客户端市场添加连接器
 
 | 连接器 | MCP 端点（目标） | 状态 |
 |--------|------------------|------|
-| 深维智信·学习闪卡（flashcard） | `https://mcp.test.omnimay.com/coach/mcp` | 已上线 |
+| 深维智讯·学习闪卡（flashcard） | `https://mcp.test.omnimay.com/coach/mcp` | 已上线 |
 
 首次连接时 agent 会提示 OAuth 登录，token 自动管理。
 
@@ -21,13 +21,13 @@ tar xzf coachskills-*.tar.gz -C ~/.claude/skills/
 | 场景 | 加载入口 |
 |------|----------|
 | 学习闪卡 · 建卡/改卡/验题 | `skills/flashcard_design/SKILL.md` |
-| 连接 / OAuth / 会话排障 | `skills/connect/SKILL.md` |
+| 连接 / OAuth / 会话排障 | `skills/coach-mcp-connect/SKILL.md` |
 
 ---
 
 ## 关键配置细节
 
-> 完整连接与排障见 `skills/connect/`。以下为速查。
+> 完整连接与排障见 `skills/coach-mcp-connect/`。以下为速查。
 
 ### OAuth
 

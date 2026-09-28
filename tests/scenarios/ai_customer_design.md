@@ -8,7 +8,7 @@
 - **调用序列**：`ai_customer.create` → `ai_customer.update`（课程简报，秒返 taskId）→ `ai_customer.update_status`（每 5s 轮询至 done）→ `ai_customer.get`（核实 `status=create_status_created` 且 `stages` 非空）→ `task.create_open_project`
 - **预期业务结果**：
   - 完成判定**只**依据 `ai_customer.get` 返回 `status=create_status_created` 且 `stages` 非空
-  - 即使 `update_status` done 或 AI 回复"建课完成"，config 未满足判定条件时继续轮询 `get`（等 30s 再查，最长 10 分钟，全程静默）
+  - 即使 `update_status` done 或 AI 回复"建课完成"，config 未满足判定条件时继续轮询 `get`（等 30s 再查，最长 20 分钟，全程静默）
   - 交付练习链接 + 二维码
 
 ## S2 改课含基线核实（对应 E05）
@@ -50,7 +50,7 @@
 ## S6 QR 降级仅链接交付（对应 E07 降级场景）
 
 - **前置条件**：课程已建成，`task.create_open_project` 已返回链接；宿主无 Python 运行时（或 render_qr.py 依赖缺失 / 输出不可写）
-- **调用序列**：`task.create_open_project` → 尝试执行 `python3 <skill-root>/scripts/render_qr.py '<链接>'` → 失败（非零退出，E-HOST-/E-USER- 错误码）
+- **调用序列**：`task.create_open_project` → 尝试执行 `python3 <技能安装目录>/ai_customer_design/scripts/render_qr.py '<链接>'` → 失败（非零退出，E-HOST-/E-USER- 错误码）
 - **预期业务结果**：
   - 原始练习链接**必达**（纯文本可复制形式展示）——链接本身是有效交付
   - 向用户明确说明二维码增强项缺失及原因；不伪造二维码、不由大模型直接生成二维码
@@ -58,8 +58,8 @@
 
 ## S7 QR 正常双交付（对应 E07 正常场景）
 
-- **前置条件**：宿主有 Python 运行时，`<skill-root>/vendor/segno` 完整
-- **调用序列**：`task.create_open_project` → `python3 <skill-root>/scripts/render_qr.py '<链接>' --out '<可写目录>/practice.png'` → 展示 PNG
+- **前置条件**：宿主有 Python 运行时，`<技能安装目录>/ai_customer_design/vendor/segno` 完整
+- **调用序列**：`task.create_open_project` → `python3 <技能安装目录>/ai_customer_design/scripts/render_qr.py '<链接>' --out '<可写目录>/practice.png'` → 展示 PNG
 - **预期业务结果**：
   - 二维码内容与原链接一致（可解码验证）
   - 同一条回复中同时包含可复制链接文本与二维码图片，缺一不可
@@ -67,7 +67,7 @@
 ## S8 课程查询与无关请求不触发（对应 E03）
 
 - **前置条件**：技能已加载；会话中可能出现两类请求：培训课程查询、与培训无关的任务
-- **调用序列**：查询类 → `course.list` / `task.get_detail_list` / `organization.info_get` → 汇总答复
+- **调用序列**：查询类 → `training.course.list` / `training.task.get_detail_list` / `training.organization.tree` → 汇总答复（仅调用白名单内工具）
 - **预期业务结果**：
-  - 查询返回正确数据
+  - 查询返回正确数据，且所有调用均来自 SKILL.md 工具白名单
   - 与培训课程无关的请求不启动任何培训流程（不建课、不调 update）
