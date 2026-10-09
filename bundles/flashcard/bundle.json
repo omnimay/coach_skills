@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "flashcard",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "skills": [
     "flashcard_design",
     "coach-mcp-connect"
@@ -10,7 +10,7 @@
     "defaultLocale": "zh-CN",
     "locales": {
       "zh-CN": {
-        "name": "深维智讯·学习闪卡",
+        "name": "深维智讯・学习闪卡",
         "description": "学习闪卡是一种 AI 驱动的知识学习工具。将产品资料、课程文档或知识主题快速生成学习闪卡，支持选择题、问答题、朗读背诵等练习方式，帮助你快速掌握和巩固重点知识。支持 AI 出题、改题和调整题目数量。",
         "examples": [
           "基于我上传的产品资料出一套 8 道单选题的闪卡课",

@@ -10,6 +10,8 @@
 | 目标版本 | coachskills bundle 化首版 |
 | 替代 | RFC-0002（superseded） |
 
+> ⚠️ **历史文档**：本文示例中的 `sales-coach` 已重命名为 `ai-customer`（见 commit cf41b64）。当前版本号与发布机制见 [RFC-0006](../approved/RFC-0006-skill-package-versioning-and-delivery.md)。
+
 ## 核心概览
 
 > 阅读本节约 30 秒，可快速掌握本提案的核心逻辑。

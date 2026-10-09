@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "id": "sales-coach",
-  "version": "1.0.1",
+  "id": "ai-customer",
+  "version": "1.0.4",
   "skills": [
     "ai_customer_design",
     "coach-mcp-connect"
@@ -38,7 +38,8 @@
   },
   "targets": {
     "workbuddy": {
-      "source": "sales-coach",
+      "source": "ai-customer",
+      "distributionName": "ai-customer",
       "type": "mcp",
       "minVersion": "4.24.0"
     }

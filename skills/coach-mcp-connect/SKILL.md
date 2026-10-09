@@ -292,7 +292,7 @@ OAuth token 有效期约 15 天。当 MCP 工具返回 401 时：
 # Linux / macOS
 python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py auth
 python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py auth --status
-python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py --mcp-url https://mcp.test.omnimay.com/coach/mcp auth
+python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py --mcp-url https://mcp.example.com/coach/mcp auth
 ```
 
 > **路径说明**：示例使用 `<技能安装目录>` 指代技能安装根目录，后接技能名定位具体脚本。如果相对路径找不到脚本，改用绝对路径。

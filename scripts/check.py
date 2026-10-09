@@ -9,6 +9,7 @@
 不执行任何 git 写操作。
 """
 import argparse
+import json
 import os
 import re
 import sys
@@ -19,7 +20,7 @@ import yaml
 # 添加脚本目录到路径，以便导入 file_validator
 sys.path.insert(0, str(Path(__file__).parent))
 import file_validator  # pyright: ignore[reportMissingImports]
-from bundle_builder.bundle import load_bundle, validate_bundle, validate_bundle_icon  # pyright: ignore[reportMissingImports]
+from bundle_builder.bundle import load_bundle, validate_bundle, validate_bundle_icon, parse_semver, load_environments  # pyright: ignore[reportMissingImports]
 from bundle_builder.workbuddy import validate_workbuddy  # pyright: ignore[reportMissingImports]
 
 REPO = Path.cwd()  # 从仓库根运行
@@ -30,7 +31,12 @@ BUNDLES_DIR = REPO / "bundles"
 
 CHECKS = ("frontmatter", "host-terms", "trigger-phrases", "mechanism-terms",
           "references", "readme", "migration", "manifests", "qr-fallback",
-          "oauth-copy", "file-boundary")
+          "oauth-copy", "file-boundary", "release-plan", "distribution")
+
+# distributionName 只允许安全文件名（字母、数字、连字符、下划线、点）
+DISTRIBUTION_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]*$")
+# 已知 target 名称（可扩展）
+KNOWN_TARGETS = {"workbuddy", "universal"}
 
 FRONTMATTER_REQUIRED = ("name", "description")
 FRONTMATTER_ALLOWED = {"name", "description", "license", "metadata", "allowed-tools"}
@@ -244,6 +250,140 @@ def check_file_boundary():
             fail("FILE-BOUNDARY", f"skills/{skill_name}", error)
 
 
+def discover_bundles() -> list[Path]:
+    """列出 bundles/ 下所有有效 bundle 目录。"""
+    if not BUNDLES_DIR.is_dir():
+        return []
+    return sorted(
+        d for d in BUNDLES_DIR.iterdir()
+        if d.is_dir() and d.name != "__pycache__" and (d / "bundle.json").is_file()
+    )
+
+
+def check_release_plan():
+    """校验每个 bundle 的 release-plan.json（RFC-0006 §5）。"""
+    # 加载 environments.json 用于变体名校验
+    envs_file = REPO / "environments.json"
+    try:
+        envs = load_environments(envs_file)
+    except (SystemExit, OSError):
+        envs = {}
+
+    for bundle_dir in discover_bundles():
+        plan_path = bundle_dir / "release-plan.json"
+        if not plan_path.is_file():
+            fail("RELEASE-PLAN", str(plan_path), "release-plan.json 缺失")
+            continue
+        try:
+            plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            fail("RELEASE-PLAN", str(plan_path), f"JSON 解析失败：{e}")
+            continue
+
+        if not isinstance(plan, dict):
+            fail("RELEASE-PLAN", str(plan_path), "顶层必须是对象")
+            continue
+
+        # version 必须存在且为合法 SemVer
+        version = plan.get("version")
+        if not isinstance(version, str):
+            fail("RELEASE-PLAN", f"{plan_path}:version", "version 必须是字符串")
+            continue
+        try:
+            parse_semver(version)
+        except ValueError:
+            fail("RELEASE-PLAN", f"{plan_path}:version", f"不是合法 SemVer：{version}")
+            continue
+
+        # 必须与 bundle.json 的 version 匹配
+        try:
+            bundle = load_bundle(bundle_dir)
+        except SystemExit:
+            fail("RELEASE-PLAN", str(plan_path), "bundle.json 加载失败")
+            continue
+        if version != bundle.get("version"):
+            fail(
+                "RELEASE-PLAN", f"{plan_path}:version",
+                f"与 bundle.json 版本不一致：{version} ≠ {bundle.get('version')}"
+            )
+
+        # targets 必须是非空对象
+        targets = plan.get("targets")
+        if not isinstance(targets, dict) or not targets:
+            fail("RELEASE-PLAN", f"{plan_path}:targets", "targets 必须是非空对象")
+            continue
+
+        for target_name, variants in targets.items():
+            if target_name not in KNOWN_TARGETS:
+                fail("RELEASE-PLAN", f"{plan_path}:targets.{target_name}", f"未知 target：{target_name}")
+            if not isinstance(variants, list) or not variants:
+                fail("RELEASE-PLAN", f"{plan_path}:targets.{target_name}", "variants 必须是非空数组")
+                continue
+            # 变体名必须是字符串且无重复
+            for v in variants:
+                if not isinstance(v, str) or not v:
+                    fail("RELEASE-PLAN", f"{plan_path}:targets.{target_name}", f"变体必须是字符串：{v!r}")
+            if len(set(variants)) != len(variants):
+                fail("RELEASE-PLAN", f"{plan_path}:targets.{target_name}", "variants 有重复项")
+            # 变体名必须在 environments.json 中注册
+            for v in variants:
+                if isinstance(v, str) and v not in envs:
+                    fail("RELEASE-PLAN", f"{plan_path}:targets.{target_name}",
+                         f"变体 {v!r} 未在 environments.json 中注册")
+
+
+def check_distribution():
+    """校验每个 bundle 的 distributionName（RFC-0006 §3.1）+ 跨 bundle 文件名碰撞。"""
+    # 收集所有坐标键：{target/distributionName/variant: bundle_dir}
+    seen_keys: dict[str, Path] = {}
+
+    for bundle_dir in discover_bundles():
+        try:
+            bundle = load_bundle(bundle_dir)
+        except SystemExit:
+            continue
+        bundle_id = bundle.get("id", bundle_dir.name)
+
+        # release-plan.json 驱动校验
+        plan_path = bundle_dir / "release-plan.json"
+        if not plan_path.is_file():
+            continue
+        try:
+            plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            fail("DISTRIBUTION", str(plan_path), f"JSON 解析失败：{e}")
+            continue
+        except OSError as e:
+            fail("DISTRIBUTION", str(plan_path), f"读取失败：{e}")
+            continue
+
+        for target, variants in plan.get("targets", {}).items():
+            if not isinstance(variants, list):
+                continue
+
+            # 按 target 读取 distributionName（与 Coordinate.distribution_name 一致）
+            target_cfg = bundle.get("targets", {}).get(target, {})
+            dist_name = target_cfg.get("distributionName") or bundle_id
+
+            # 单个 bundle 的 distributionName 格式校验
+            if target_cfg.get("distributionName") is not None:
+                if not isinstance(dist_name, str) or not DISTRIBUTION_NAME_RE.match(dist_name):
+                    fail(
+                        "DISTRIBUTION", f"{bundle_dir}/bundle.json:targets.{target}.distributionName",
+                        f"只能是字母、数字、连字符、下划线、点：{dist_name!r}"
+                    )
+
+            for variant in variants:
+                key = f"{target}/{dist_name}/{variant}"
+                if key in seen_keys:
+                    fail(
+                        "DISTRIBUTION", f"{bundle_dir}/release-plan.json",
+                        f"坐标 {key} 与 {seen_keys[key].name} 冲突（同文件名）"
+                    )
+                else:
+                    seen_keys[key] = bundle_dir
+
+
 def main():
     parser = argparse.ArgumentParser(description="技能仓库静态检查（RFC-0002）")
     parser.add_argument("--only", nargs="+", choices=CHECKS, metavar="CHECK",
@@ -278,6 +418,10 @@ def main():
         check_oauth_copy(skills)
     if "file-boundary" in selected:
         check_file_boundary()
+    if "release-plan" in selected:
+        check_release_plan()
+    if "distribution" in selected:
+        check_distribution()
 
     for category, location, message in ERRORS:
         print(f"E-MAINT-{category}: {location} {message}", file=sys.stderr)

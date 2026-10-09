@@ -7,10 +7,10 @@
 每个 bundle 打包后生成独立的 WorkBuddy 连接器 zip：
 
 ```text
-sales-coach-v0.1.5-test.zip        # 文件名 = bundle名-v版本号-环境.zip
+ai-customer-v0.1.5-test.zip        # 文件名 = bundle名-v版本号-环境.zip
 ├── connector-meta.json            # 由 bundle.json 生成（展示信息 + targets.workbuddy 字段 + version 注入）
 ├── mcp.json                       # 由 bundle.json 的 mcp.servers 生成（${MCP_URL} 已按环境解析）
-├── icon.svg                       # 来自 bundles/sales-coach/icon.svg
+├── icon.svg                       # 来自 bundles/ai-customer/icon.svg
 └── skills/                        # 根据 bundle.json 的 skills 数组从 skills/ 复制
     └── ai_customer_design/
         ├── SKILL.md
@@ -20,7 +20,7 @@ sales-coach-v0.1.5-test.zip        # 文件名 = bundle名-v版本号-环境.zip
 生成命令：
 
 ```bash
-python3 scripts/pack.py --bundle sales-coach   # 打包指定 bundle（默认 test 环境）
+python3 scripts/pack.py --bundle ai-customer   # 打包指定 bundle（默认 test 环境）
 python3 scripts/pack.py                        # 打包所有 bundle
 python3 scripts/pack.py --env coach            # 生产环境端点
 python3 scripts/pack.py --env dingtalk         # 钉钉云环境端点

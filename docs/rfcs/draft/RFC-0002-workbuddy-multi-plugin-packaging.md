@@ -3,6 +3,8 @@ status: Superseded
 superseded_by: RFC-0003
 ---
 
+> ⚠️ **历史文档**：本文示例中的 `sales-coach` 已重命名为 `ai-customer`，`.workbuddy-plugin/` 架构已被 `bundles/` 取代。当前实现见 [RFC-0003](RFC-0003-skill-bundle-refactoring.md) + [RFC-0006](../approved/RFC-0006-skill-package-versioning-and-delivery.md)。
+
 # RFC-0002：WorkBuddy 多 Plugin 打包体系
 
 | 字段 | 值 |

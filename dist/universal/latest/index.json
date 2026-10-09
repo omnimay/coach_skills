@@ -1,0 +1,113 @@
+{
+  "items": {
+    "ai-customer/coach": {
+      "archiveFile": "ai-customer-v1.0.4-coach.zip",
+      "bundleId": "ai-customer",
+      "latestFile": "ai-customer-coach.zip",
+      "releaseUrl": "",
+      "sha256": "f4058b304d4eec99fd74e0d111a46481679b8269ede2494f50f5e9cfa364ba04",
+      "sourceCommit": "2d2131b6b42360bc53f30afe558972755407a207",
+      "tag": "ai-customer-v1.0.4",
+      "target": "universal",
+      "variant": "coach",
+      "version": "1.0.4"
+    },
+    "ai-customer/dingtalk": {
+      "archiveFile": "ai-customer-v1.0.4-dingtalk.zip",
+      "bundleId": "ai-customer",
+      "latestFile": "ai-customer-dingtalk.zip",
+      "releaseUrl": "",
+      "sha256": "d076528eb1b6b3d69eebc5160def20b5a577dcd4d5342e18a2682c9285e2aff9",
+      "sourceCommit": "2d2131b6b42360bc53f30afe558972755407a207",
+      "tag": "ai-customer-v1.0.4",
+      "target": "universal",
+      "variant": "dingtalk",
+      "version": "1.0.4"
+    },
+    "ai-customer/test": {
+      "archiveFile": "ai-customer-v1.0.4-test.zip",
+      "bundleId": "ai-customer",
+      "latestFile": "ai-customer-test.zip",
+      "releaseUrl": "",
+      "sha256": "e137772269366ebe7e7174be7c521fe63065866b624f120f1af0ee6ec37c8469",
+      "sourceCommit": "2d2131b6b42360bc53f30afe558972755407a207",
+      "tag": "ai-customer-v1.0.4",
+      "target": "universal",
+      "variant": "test",
+      "version": "1.0.4"
+    },
+    "flashcard/coach": {
+      "archiveFile": "flashcard-v1.0.3-coach.zip",
+      "bundleId": "flashcard",
+      "latestFile": "flashcard-coach.zip",
+      "releaseUrl": "",
+      "sha256": "f1e286ace55d640d6489b4858943cc588e7ca1f85420d866bf025cb326afd743",
+      "sourceCommit": "2d2131b6b42360bc53f30afe558972755407a207",
+      "tag": "flashcard-v1.0.3",
+      "target": "universal",
+      "variant": "coach",
+      "version": "1.0.3"
+    },
+    "flashcard/dingtalk": {
+      "archiveFile": "flashcard-v1.0.3-dingtalk.zip",
+      "bundleId": "flashcard",
+      "latestFile": "flashcard-dingtalk.zip",
+      "releaseUrl": "",
+      "sha256": "3bcfa70643f9851ba3354089489716e83821512ae8ae17b44bbc4126cc585a2f",
+      "sourceCommit": "2d2131b6b42360bc53f30afe558972755407a207",
+      "tag": "flashcard-v1.0.3",
+      "target": "universal",
+      "variant": "dingtalk",
+      "version": "1.0.3"
+    },
+    "flashcard/test": {
+      "archiveFile": "flashcard-v1.0.3-test.zip",
+      "bundleId": "flashcard",
+      "latestFile": "flashcard-test.zip",
+      "releaseUrl": "",
+      "sha256": "ab847166aac2dc1b21e392a4e7ac48ab6a3b4914689757ef9a8ff05e3893ecaf",
+      "sourceCommit": "2d2131b6b42360bc53f30afe558972755407a207",
+      "tag": "flashcard-v1.0.3",
+      "target": "universal",
+      "variant": "test",
+      "version": "1.0.3"
+    },
+    "recommend-courses/coach": {
+      "archiveFile": "recommend-courses-v1.0.2-coach.zip",
+      "bundleId": "recommend-courses",
+      "latestFile": "recommend-courses-coach.zip",
+      "releaseUrl": "",
+      "sha256": "e92df392e532006e2555779437af234c9f7bd0c36a9cbf9463604c3b44e60b8b",
+      "sourceCommit": "2d2131b6b42360bc53f30afe558972755407a207",
+      "tag": "recommend-courses-v1.0.2",
+      "target": "universal",
+      "variant": "coach",
+      "version": "1.0.2"
+    },
+    "recommend-courses/dingtalk": {
+      "archiveFile": "recommend-courses-v1.0.2-dingtalk.zip",
+      "bundleId": "recommend-courses",
+      "latestFile": "recommend-courses-dingtalk.zip",
+      "releaseUrl": "",
+      "sha256": "6fa25ea4d56382a9e6c4ba2a7939efffbb228c07d669ab4e7169c02c15023613",
+      "sourceCommit": "2d2131b6b42360bc53f30afe558972755407a207",
+      "tag": "recommend-courses-v1.0.2",
+      "target": "universal",
+      "variant": "dingtalk",
+      "version": "1.0.2"
+    },
+    "recommend-courses/test": {
+      "archiveFile": "recommend-courses-v1.0.2-test.zip",
+      "bundleId": "recommend-courses",
+      "latestFile": "recommend-courses-test.zip",
+      "releaseUrl": "",
+      "sha256": "6cdfa4782d9fe9ca6d917adf05408a50f3af78e240981223479f843ceb408a25",
+      "sourceCommit": "2d2131b6b42360bc53f30afe558972755407a207",
+      "tag": "recommend-courses-v1.0.2",
+      "target": "universal",
+      "variant": "test",
+      "version": "1.0.2"
+    }
+  },
+  "schemaVersion": 1
+}

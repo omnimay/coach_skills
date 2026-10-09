@@ -1,0 +1,7 @@
+{
+  "version": "1.0.3",
+  "targets": {
+    "workbuddy": ["coach", "test", "dingtalk"],
+    "universal": ["coach", "test", "dingtalk"]
+  }
+}
