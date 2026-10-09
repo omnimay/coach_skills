@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from bundle_builder.bundle import load_bundle, validate_bundle, validate_bundle_icon, resolve_skills, SEMVER_RE, load_environments, resolve_placeholders
+from bundle_builder.bundle import load_bundle, validate_bundle, validate_bundle_icon, resolve_skills, parse_semver, compare_versions, load_environments, resolve_placeholders
 
 
 @pytest.fixture
@@ -50,16 +50,65 @@ def _valid_bundle():
     }
 
 
-class TestSemverRe:
-    def test_valid(self):
-        assert SEMVER_RE.match("1.0.0")
-        assert SEMVER_RE.match("0.1.0")
-        assert SEMVER_RE.match("1.0.0-rc.1")
+class TestSemver:
+    def test_valid_basic(self):
+        assert parse_semver("1.0.0") == (1, 0, 0, (), ())
+        assert parse_semver("0.1.0") == (0, 1, 0, (), ())
+        assert parse_semver("10.20.30") == (10, 20, 30, (), ())
+
+    def test_valid_prerelease(self):
+        v = parse_semver("1.0.0-rc.1")
+        assert v.major == 1 and v.minor == 0 and v.patch == 0
+        assert v.prerelease == ("rc", 1)
+
+    def test_valid_build_metadata(self):
+        v = parse_semver("1.0.0+build.123")
+        assert v.build == ("build", "123")
+        v2 = parse_semver("1.0.0-rc.1+build.456")
+        assert v2.prerelease == ("rc", 1) and v2.build == ("build", "456")
 
     def test_invalid(self):
-        assert not SEMVER_RE.match("abc")
-        assert not SEMVER_RE.match("1.0")
-        assert not SEMVER_RE.match("")
+        import pytest
+        with pytest.raises(ValueError):
+            parse_semver("abc")
+        with pytest.raises(ValueError):
+            parse_semver("1.0")
+        with pytest.raises(ValueError):
+            parse_semver("")
+        with pytest.raises(ValueError):
+            parse_semver("1.0.0-")  # 空 prerelease
+        with pytest.raises(ValueError):
+            parse_semver("1.0.0+")  # 空 build
+        with pytest.raises(ValueError):
+            parse_semver("01.0.0")  # 前导零
+
+
+class TestCompareVersions:
+    def test_equal(self):
+        assert compare_versions("1.0.0", "1.0.0") == 0
+
+    def test_major(self):
+        assert compare_versions("2.0.0", "1.0.0") == 1
+        assert compare_versions("1.0.0", "2.0.0") == -1
+
+    def test_minor(self):
+        assert compare_versions("1.2.0", "1.1.0") == 1
+        assert compare_versions("1.1.0", "1.2.0") == -1
+
+    def test_patch(self):
+        assert compare_versions("1.0.2", "1.0.1") == 1
+
+    def test_prerelease_less_than_release(self):
+        assert compare_versions("1.0.0", "1.0.0-rc.1") == 1
+        assert compare_versions("1.0.0-rc.1", "1.0.0") == -1
+
+    def test_prerelease_comparison(self):
+        assert compare_versions("1.0.0-rc.2", "1.0.0-rc.1") == 1
+        assert compare_versions("1.0.0-alpha", "1.0.0-beta") == -1
+
+    def test_build_ignored(self):
+        """build 元数据不参与版本比较"""
+        assert compare_versions("1.0.0+build.1", "1.0.0+build.2") == 0
 
 
 class TestLoadBundle:
@@ -93,7 +142,7 @@ class TestValidateBundle:
         data["version"] = "abc"
         bp = _write_bundle(bundle_dir, data)
         bundle = load_bundle(bp)
-        with pytest.raises(SystemExit, match="semver"):
+        with pytest.raises(SystemExit, match="(?i)semver"):
             validate_bundle(bundle)
 
     def test_missing_default_locale_entry(self, bundle_dir):

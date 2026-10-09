@@ -1,19 +1,106 @@
-"""通用 bundle 配置读取、校验和 ZIP 组装（RFC-0003）。"""
+"""通用 bundle 配置读取、校验和 ZIP 组装（RFC-0003 + RFC-0006）。"""
 import json
 import re
 import sys
 import zipfile
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any, NamedTuple, NoReturn
 
 # 添加 scripts/ 到路径以便导入 file_validator
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import file_validator  # pyright: ignore[reportMissingImports]
 
-SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$")
+# 严格 SemVer 2.0.0（RFC-0006 §4）：
+#   MAJOR.MINOR.PATCH[-prerelease][+build]
+#   prerelease: 点分隔标识符，每个为非空 [0-9A-Za-z-]；纯数字标识符不得有前导零
+#   build: 点分隔标识符，每个为非空 [0-9A-Za-z-]
+_ID = r"[0-9A-Za-z-]+"
+_PRERELEASE_ID = r"(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
+_BUILD_ID = _ID
+_STRICT_SEMVER_RE = re.compile(
+    r"^(?P<major>0|[1-9]\d*)"
+    r"\.(?P<minor>0|[1-9]\d*)"
+    r"\.(?P<patch>0|[1-9]\d*)"
+    r"(?:-(?P<prerelease>" + _PRERELEASE_ID + r"(?:\." + _PRERELEASE_ID + r")*))?"
+    r"(?:\+(?P<build>" + _BUILD_ID + r"(?:\." + _BUILD_ID + r")*))?$"
+)
+# 宽松正则用于 bundle id / 其他不需严格校验的场景
 BUNDLE_ID_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]*$")
 ZIP_EPOCH = (1980, 1, 1, 0, 0, 0)
 PLACEHOLDER_RE = re.compile(r"\$\{([A-Z_][A-Z0-9_]*)\}")
+
+
+class SemVer(NamedTuple):
+    """解析后的语义化版本号。build 不参与比较。"""
+
+    major: int
+    minor: int
+    patch: int
+    prerelease: tuple[str | int, ...]  # 纯数字标识符存为 int（排序用）
+    build: tuple[str, ...]
+
+
+def parse_semver(version: str) -> SemVer:
+    """解析严格 SemVer 字符串；不符合规范时抛出 ValueError。"""
+    m = _STRICT_SEMVER_RE.match(version)
+    if not m:
+        raise ValueError(f"不是合法 SemVer 2.0.0：{version!r}")
+    major, minor, patch = int(m.group("major")), int(m.group("minor")), int(m.group("patch"))
+    prerelease_raw = m.group("prerelease") or ""
+    prerelease: list[str | int] = []
+    if prerelease_raw:
+        for seg in prerelease_raw.split("."):
+            if seg.isdigit():
+                prerelease.append(int(seg))
+            else:
+                prerelease.append(seg)
+    build_raw = m.group("build") or ""
+    build = tuple(build_raw.split(".")) if build_raw else ()
+    return SemVer(major, minor, patch, tuple(prerelease), build)
+
+
+def compare_versions(a: str, b: str) -> int:
+    """比较两个 SemVer 字符串（build 不参与比较）。
+
+    返回: -1 (a < b), 0 (a == b), 1 (a > b)。
+    不符合规范时抛出 ValueError。
+    """
+    va, vb = parse_semver(a), parse_semver(b)
+    # major.minor.patch
+    for x, y in [(va.major, vb.major), (va.minor, vb.minor), (va.patch, vb.patch)]:
+        if x < y:
+            return -1
+        if x > y:
+            return 1
+    # prerelease：无 prerelease > 有 prerelease（正式版 > 预发布）
+    pa, pb = va.prerelease, vb.prerelease
+    if not pa and not pb:
+        return 0
+    if not pa:
+        return 1
+    if not pb:
+        return -1
+    # 按标识符逐个比较
+    for i in range(min(len(pa), len(pb))):
+        sa, sb_ = pa[i], pb[i]
+        if sa == sb_:
+            continue
+        # 类型不同：int < str（SemVer 规范 §11.4.3）
+        if isinstance(sa, int) and isinstance(sb_, str):
+            return -1
+        if isinstance(sa, str) and isinstance(sb_, int):
+            return 1
+        # 同类型直接比较
+        if isinstance(sa, int) and isinstance(sb_, int):
+            return -1 if sa < sb_ else 1
+        # 此时 sa 和 sb_ 都是 str
+        return -1 if sa < sb_ else 1  # pyright: ignore[reportOperatorIssue]
+    # 所有公共标识符相同，较长者更大
+    if len(pa) < len(pb):
+        return -1
+    if len(pa) > len(pb):
+        return 1
+    return 0
 
 
 def load_environments(env_file: Path) -> dict[str, dict[str, str]]:
@@ -72,10 +159,14 @@ def validate_bundle(bundle: dict[str, Any]) -> None:
     if not isinstance(bundle_id, str) or not BUNDLE_ID_RE.match(bundle_id):
         fail(f"bundle.json 校验失败：'id' 只能是字母、数字、连字符、下划线、点，且不能以特殊字符开头：'{bundle_id}'")
 
-    # semver
+    # semver（严格 SemVer 2.0.0，含 prerelease 段校验）
     version = bundle["version"]
-    if not isinstance(version, str) or not SEMVER_RE.match(version):
-        fail(f"bundle.json 校验失败：'version' 不是合法 semver：'{version}'")
+    if not isinstance(version, str):
+        fail("bundle.json 校验失败：'version' 必须是字符串")
+    try:
+        parse_semver(version)
+    except ValueError:
+        fail(f"bundle.json 校验失败：'version' 不是合法 SemVer 2.0.0：'{version}'")
 
     # skills 类型
     if not isinstance(bundle["skills"], list):

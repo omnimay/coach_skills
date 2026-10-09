@@ -1,39 +1,25 @@
 #!/usr/bin/env python3
-"""Bundle 打包脚本（RFC-0003）。
+"""Bundle 打包脚本（RFC-0003 + RFC-0006）。
 
 从 bundles/<bundle>/ 配置生成平台特定的 zip 包。
+构建逻辑共享于 bundle_builder/build.py，供 release_bundle.py 复用。
 
 用法：
     python3 scripts/pack.py                                    # 打包所有 bundle（默认 workbuddy）
     python3 scripts/pack.py --bundle flashcard                # 打包指定 bundle
-    python3 scripts/pack.py --bundle sales-coach --target workbuddy  # 打包指定 bundle+平台
+    python3 scripts/pack.py --bundle ai-customer --target workbuddy  # 打包指定 bundle+平台
     python3 scripts/pack.py --out dist/workbuddy               # 指定输出目录
 """
 import argparse
-import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from bundle_builder.bundle import (
-    load_bundle,
-    validate_bundle,
-    validate_bundle_icon,
-    resolve_skills,
-    write_zip,
-    load_environments,
-    resolve_placeholders,
-)
-from bundle_builder.workbuddy import (
-    generate_auth_profile,
-    generate_connector_meta,
-    generate_mcp_json,
-    validate_workbuddy,
-)
+from bundle_builder.build import build_bundle_zip, write_entries_zip  # pyright: ignore[reportMissingImports]
+from bundle_builder.bundle import load_environments  # pyright: ignore[reportMissingImports]
 
 REPO = Path.cwd()
 BUNDLES_DIR = REPO / "bundles"
-SKILLS_DIR = REPO / "skills"
 ENVS_FILE = REPO / "environments.json"
 
 
@@ -63,73 +49,6 @@ def discover_bundles(filter_names: list[str] | None) -> list[Path]:
     return bundles
 
 
-def pack_bundle(
-    bundle_dir: Path,
-    target: str,
-    out_dir: Path,
-    env_vars: dict[str, str] | None = None,
-    env_name: str = "",
-) -> str:
-    """打包单个 bundle 到指定目标平台，返回 zip 文件名。"""
-    bundle = load_bundle(bundle_dir)
-    validate_bundle(bundle)
-    validate_bundle_icon(bundle, bundle_dir)
-
-    # 解析环境变量占位符（缺失变量时 resolve_placeholders 会报错）
-    bundle = resolve_placeholders(bundle, env_vars or {})
-
-    skills_files = resolve_skills(bundle, SKILLS_DIR)
-
-    if target == "workbuddy":
-        validate_workbuddy(bundle)
-        connector_meta = generate_connector_meta(bundle)
-        mcp_json = generate_mcp_json(bundle)
-    else:
-        print(f"ERROR: 不支持的目标平台：{target}", file=sys.stderr)
-        sys.exit(1)
-
-    bundle_name = bundle["id"]
-    version = bundle["version"]
-    # 产物名携带环境名，避免 test/coach 产物混淆
-    suffix = f"-{env_name}" if env_name else ""
-    zip_name = f"{bundle_name}-v{version}{suffix}.zip"
-
-    entries: dict[Path, bytes] = {}
-
-    # connector-meta.json
-    entries[Path("connector-meta.json")] = json.dumps(
-        connector_meta, ensure_ascii=False, indent=2, sort_keys=True
-    ).encode("utf-8") + b"\n"
-
-    # mcp.json
-    entries[Path("mcp.json")] = json.dumps(
-        mcp_json, ensure_ascii=False, indent=2, sort_keys=True
-    ).encode("utf-8") + b"\n"
-
-    # auth-profile.json (RFC-0005)
-    auth_profile = generate_auth_profile(env_vars or {})
-    entries[Path("auth-profile.json")] = json.dumps(
-        auth_profile, ensure_ascii=False, indent=2, sort_keys=True
-    ).encode("utf-8") + b"\n"
-
-    # icon.svg
-    icon_path = bundle_dir / bundle["presentation"]["icon"]
-    entries[Path("icon.svg")] = icon_path.read_bytes()
-
-    # skills
-    for skill_name, rel_files in skills_files.items():
-        skill_src = SKILLS_DIR / skill_name
-        for rel_path in rel_files:
-            archive_path = Path("skills") / skill_name / rel_path
-            entries[archive_path] = (skill_src / rel_path).read_bytes()
-
-    out_dir.mkdir(parents=True, exist_ok=True)
-    zip_path = out_dir / zip_name
-    write_zip(zip_path, entries)
-
-    return zip_name
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="Bundle 打包脚本（RFC-0003）")
     parser.add_argument(
@@ -150,10 +69,13 @@ def main() -> None:
     )
     parser.add_argument(
         "--out",
-        default="dist/workbuddy",
-        help="输出目录（默认 dist/workbuddy）",
+        default=None,
+        help="输出目录（默认 dist/<target>）",
     )
     args = parser.parse_args()
+
+    # 确定输出目录：如果未指定，则使用 dist/<target>
+    out_dir_name = args.out if args.out else f"dist/{args.target}"
 
     # 加载环境配置
     environments = load_environments(ENVS_FILE)
@@ -162,16 +84,22 @@ def main() -> None:
         sys.exit(1)
     env_vars = environments[args.env]
 
-    out_dir = REPO / args.out
+    out_dir = REPO / out_dir_name
     bundles = discover_bundles(args.bundles)
+    skills_dir = REPO / "skills"
 
     packed = []
     for bundle_dir in bundles:
-        zip_name = pack_bundle(bundle_dir, args.target, out_dir, env_vars, args.env)
+        entries, zip_name = build_bundle_zip(
+            bundle_dir, skills_dir, args.target, env_vars, args.env
+        )
+        out_dir.mkdir(parents=True, exist_ok=True)
+        zip_path = out_dir / zip_name
+        write_entries_zip(zip_path, entries)
         packed.append(zip_name)
-        print(f"✓ {bundle_dir.name} → {args.out}/{zip_name}")
+        print(f"✓ {bundle_dir.name} → {out_dir_name}/{zip_name}")
 
-    print(f"\n打包完成：{len(packed)} 个 bundle → {args.out}/")
+    print(f"\n打包完成：{len(packed)} 个 bundle → {out_dir_name}/")
 
 
 if __name__ == "__main__":
