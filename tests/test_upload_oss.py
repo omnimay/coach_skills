@@ -65,8 +65,8 @@ class TestBuildUploadPlan:
         plan = upload_oss.build_upload_plan(latest_dir)
         keys = {entry["oss_key"] for entry in plan}
         assert keys == {
-            "mcpskills/coach/ai-customer/ai-customer-coach.zip",
-            "mcpskills/coach/test-bundle/custom-name-dingtalk.zip",
+            "mcpskills/coach/ai_customer/ai-customer-coach.zip",
+            "mcpskills/coach/test_bundle/custom-name-dingtalk.zip",
         }
 
     def test_plan_carries_metadata(self, tmp_path):
@@ -112,6 +112,19 @@ class TestBuildUploadPlan:
         (latest_dir / "index.json").write_text(json.dumps({"items": {}}), encoding="utf-8")
         with pytest.raises(SystemExit, match="items 为空"):
             upload_oss.build_upload_plan(latest_dir)
+
+    def test_folder_name_underscore_conversion(self, tmp_path):
+        # 连字符不同的 bundleId（a-b vs a_b）转换后映射到同一文件夹
+        # 两个条目使用不同 latestFile，因此不会触发 oss_key 重复检查
+        # 测试目标：验证 replace("-", "_") 转换正确执行，两者均落入 a_b 文件夹
+        items = {
+            "a-b/coach": make_item("a-b", "coach", "bundle-a-coach.zip"),
+            "a_b/coach": make_item("a_b", "coach", "bundle-b-coach.zip"),
+        }
+        latest_dir = write_latest_dir(tmp_path, items)
+        plan = upload_oss.build_upload_plan(latest_dir)
+        folders = {entry["oss_key"].split("/")[2] for entry in plan}
+        assert folders == {"a_b"}  # 两个 bundleId 都转换成了 a_b
 
 
 # ── OSS 凭证配置 ──────────────────────────────────────────────────────
@@ -180,11 +193,12 @@ class TestUpload:
 
         assert len(fake_bucket.calls) == 2
         keys = [call[0] for call in fake_bucket.calls]
-        assert "mcpskills/coach/ai-customer/ai-customer-coach.zip" in keys
+        assert "mcpskills/coach/ai_customer/ai-customer-coach.zip" in keys
         assert "mcpskills/coach/flashcard/flashcard-test.zip" in keys
         for _, path, headers in fake_bucket.calls:
             assert headers["Content-Type"] == "application/zip"
             assert headers["Cache-Control"] == "no-cache, max-age=0, must-revalidate"
+            assert headers["x-oss-object-acl"] == "public-read"
             assert len(headers["x-oss-meta-sha256"]) == 64
             assert Path(path).is_file()
         out = capsys.readouterr().out
@@ -198,7 +212,7 @@ class TestUpload:
         monkeypatch.setattr(
             "sys.argv", ["upload_oss.py", "--retries", "1", "--retry-backoff", "0", str(latest_dir)]
         )
-        key = "mcpskills/coach/ai-customer/ai-customer-coach.zip"
+        key = "mcpskills/coach/ai_customer/ai-customer-coach.zip"
         install_fake_oss2(monkeypatch, FakeBucket(failures={key: 500}))
 
         with pytest.raises(SystemExit, match="500"):
@@ -237,7 +251,7 @@ class TestMainDryRun:
         upload_oss.main()  # 无任何 OSS_* 凭证也应成功
 
         out = capsys.readouterr().out
-        assert "oss://megaview/mcpskills/coach/ai-customer/ai-customer-coach.zip" in out
+        assert "oss://megaview/mcpskills/coach/ai_customer/ai-customer-coach.zip" in out
         assert "dry-run" in out
 
     def test_dry_run_never_constructs_bucket(self, tmp_path, monkeypatch):

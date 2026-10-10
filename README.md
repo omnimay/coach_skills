@@ -79,6 +79,7 @@ coachskills/
 | --- | --- | --- | --- | --- |
 | [ai-customer](bundles/ai-customer/) | `ai-customer` | 深维智讯・销售陪练 | ai_customer_design, coach-mcp-connect | `ai-customer-v<version>-<env>.zip` |
 | [flashcard](bundles/flashcard/) | `flashcard`（= id） | 深维智讯·学习闪卡 | flashcard_design, coach-mcp-connect | `flashcard-v<version>-<env>.zip` |
+| [recommend-courses](bundles/recommend-courses/) | `recommend-courses`（= id） | 深维智讯·课程推荐 | ai_customer_design, coach-mcp-connect, recommend_courses, flashcard_design | `recommend-courses-v<version>-<env>.zip` |
 
 > 发行别名（`distributionName`）仅用于 `latest/` 下载文件名前缀，不影响包内身份。在 `bundle.json` 的 `targets.workbuddy.distributionName` 中声明；未声明时默认等于 `id`。详见 [RFC-0006](docs/rfcs/approved/RFC-0006-skill-package-versioning-and-delivery.md)。
 
@@ -244,38 +245,70 @@ python3 -m pytest tests/ -q       # 跑测试
 
 #### 阶段二：打 tag（人工）
 
+> **核心原则**：tag 名称必须与 `bundle.json` 中的 `id` 和 `version` 字段**完全一致**。CI 会用 tag 名称构建包，如果不匹配会导致发布失败。
+
+**逐步执行**：
+
 ```bash
-# 切到 main 并拉取最新
+# 1. 确认你在 main 分支且已是最新
 git checkout main
 git pull origin main
 
-# 创建 tag（格式：<bundle-id>-v<SemVer>）
-git tag ai-customer-v1.0.2
+# 2. 查看当前 bundle.json 的版本号（以 ai-customer 为例）
+cat bundles/ai-customer/bundle.json | grep '"version"'
+# 输出示例："version": "1.0.5"
 
-# 推送 tag
-git push origin ai-customer-v1.0.2
+# 3. 构造 tag 名称 = bundle-id + "-v" + 版本号
+#    例如：id="ai-customer", version="1.0.5" → tag 名称为 ai-customer-v1.0.5
+
+# 4. 创建 tag
+git tag ai-customer-v1.0.5
+
+# 5. 推送 tag 到远程仓库
+git push origin ai-customer-v1.0.5
 ```
+
+**⚠️ 常见错误**：
+- **版本号不一致**：tag 写 `v1.0.5` 但 `bundle.json` 里是 `1.0.4` → CI 的 `plan` 阶段会报错
+- **拼写错误**：`ai-customer-v1.0.5` 写成 `ai_customer-v1.0.5`（下划线 vs 连字符）→ tag 格式校验失败
+- **重复 tag**：如果 tag 已存在，先删除再创建：`git tag -d ai-customer-v1.0.5 && git push origin :refs/tags/ai-customer-v1.0.5`
+
+**推送 tag 后会发生什么**：
+
+CI 自动触发四阶段流水线（无需人工干预）：
+
+| 阶段 | 自动执行内容 | 产物 |
+|---|---|---|
+| `check` | 静态检查 + 单元测试 | CI 通过/失败状态 |
+| `build` | `plan`（校验 tag 一致性）→ 构建 ZIP → 上传 Registry → 创建 Release | Release 页面 + Registry 归档 |
+| `promote` | 复制 ZIP 到 `dist/<target>/latest/` → 更新 `index.json` → 提交推送 main | `dist/workbuddy/latest/` + `dist/universal/latest/` |
+| `upload-oss` | 上传通用包到 OSS（`OSS_*` 变量未配置时跳过） | OSS 可访问的 ZIP 文件 |
+
+**人工仅需确认**：
+1. 流水线是否全部通过（GitLab → CI/CD → Pipelines）
+2. Release 描述中的 SHA-256 是否正确
+3. 然后执行阶段五：手动提交 WorkBuddy 平台
 
 #### 阶段三：构建 + 归档（自动）
 
 ```bash
 # 运行 archive 命令（构建 + 上传 Registry + 创建 Release）
-python3 scripts/release_bundle.py archive ai-customer-v1.0.2
+python3 scripts/release_bundle.py archive ai-customer-v1.0.5
 
 # 输出示例（以 ai-customer 为例，包含 3 个变体）：
-# 📦 ai-customer-v1.0.2-coach.zip
+# 📦 ai-customer-v1.0.5-coach.zip
 #    构建完成：114356 bytes, SHA-256=9adb179ae2255953...
 #    上传完成：SHA-256=9adb179ae2255953...
 #    ✓ 下载核验通过
-# 📦 ai-customer-v1.0.2-test.zip
+# 📦 ai-customer-v1.0.5-test.zip
 #    构建完成：114359 bytes, SHA-256=80ff546c4c33a610...
 #    上传完成：SHA-256=80ff546c4c33a610...
 #    ✓ 下载核验通过
-# 📦 ai-customer-v1.0.2-dingtalk.zip
+# 📦 ai-customer-v1.0.5-dingtalk.zip
 #    构建完成：114366 bytes, SHA-256=80d012a5f300289d...
 #    上传完成：SHA-256=80d012a5f300289d...
 #    ✓ 下载核验通过
-# 📝 Release 已创建/更新：ai-customer-v1.0.2
+# 📝 Release 已创建/更新：ai-customer-v1.0.5
 ```
 
 **注意**：需要先配置 GitLab API 环境变量：
@@ -291,7 +324,7 @@ export GITLAB_TOKEN="<your-token>"  # 需要 api scope
 
 ```bash
 # CI 自动执行（tag 触发），不需要手动运行
-python3 scripts/release_bundle.py promote ai-customer-v1.0.2
+python3 scripts/release_bundle.py promote ai-customer-v1.0.5
 
 # 输出示例：
 #   ↓ ai-customer-coach.zip（SHA-256=9adb179ae2255953...）
@@ -308,11 +341,11 @@ python3 scripts/release_bundle.py promote ai-customer-v1.0.2
 # 1. 确保 CI 的 archive 阶段已成功（包已在 Registry）
 
 # 2. 本地运行 promote（使用 glab CLI 认证或环境变量）
-python3 scripts/release_bundle.py promote ai-customer-v1.0.3
+python3 scripts/release_bundle.py promote ai-customer-v1.0.5
 
 # 3. 提交生成的 latest/ 文件
 git add dist/
-git commit -m "chore(dist): promote ai-customer-v1.0.3 to latest/"
+git commit -m "chore(dist): promote ai-customer-v1.0.5 to latest/"
 
 # 4. 推送并在 MR 中合入 main
 git push origin HEAD
@@ -326,7 +359,7 @@ git push origin HEAD
 
 #### 阶段五：渠道交付（人工）
 
-- [ ] 在 GitLab 查看 Release：`https://git.mgvai.cn/coach/coachskills/-/releases/ai-customer-v1.0.2`
+- [ ] 在 GitLab 查看 Release：`https://git.mgvai.cn/coach/coachskills/-/releases/ai-customer-v1.0.5`
 - [ ] 手动提交 WorkBuddy 平台（从 Release 下载 ZIP 并上传）
 - [ ] 更新 Release 描述中的"渠道状态"表格，标记已完成的渠道
 
@@ -336,16 +369,16 @@ git push origin HEAD
 
 ```bash
 # 预览发布计划（plan 本身不执行任何修改操作，可安全运行）
-python3 scripts/release_bundle.py plan ai-customer-v1.0.2
+python3 scripts/release_bundle.py plan ai-customer-v1.0.5
 
 # 预览 archive 流程（不实际上传）
-python3 scripts/release_bundle.py archive ai-customer-v1.0.2 --dry-run
+python3 scripts/release_bundle.py archive ai-customer-v1.0.5 --dry-run
 
 # 预览 promote 流程（不实际更新 latest/）
-python3 scripts/release_bundle.py promote ai-customer-v1.0.2 --dry-run
+python3 scripts/release_bundle.py promote ai-customer-v1.0.5 --dry-run
 
 # 预览全流程（plan + archive + promote）
-python3 scripts/release_bundle.py full ai-customer-v1.0.2 --dry-run
+python3 scripts/release_bundle.py full ai-customer-v1.0.5 --dry-run
 ```
 
 **取包**：日常从 `dist/<target>/latest/` 取最新正式包；历史版本在 GitLab Generic Package Registry。
@@ -363,9 +396,9 @@ python3 scripts/release_bundle.py full ai-customer-v1.0.2 --dry-run
 
 除 WorkBuddy 平台分发外，公司 Skills 仓库同时提供**通用包**路径，供用户直接从网上下载 ZIP 自行安装技能。
 
-- **OSS 路径**：`mcpskills/coach/<bundle-id>/<bundle-id>-<variant>.zip`
+- **OSS 路径**：`mcpskills/coach/<bundle_id>/<bundle-id>-<variant>.zip`（文件夹名下划线，文件名连字符）
 - **示例**：
-  - `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/ai-customer/ai-customer-coach.zip`
-  - `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/ai-customer/ai-customer-dingtalk.zip`
+  - `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/ai_customer/ai-customer-coach.zip`
+  - `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/ai_customer/ai-customer-dingtalk.zip`
 
 通用包与 WorkBuddy 包是独立的分发渠道，当前阶段内容相同。通用包内含 `README.md` 安装指南，用户下载后参考配置 MCP 客户端。tag 触发的 CI 流水线在 promote 后自动上传到 OSS（`upload-oss` 作业；`OSS_*` 变量未配置时跳过，详见 [docs/oss-upload-automation.md](docs/oss-upload-automation.md)）。

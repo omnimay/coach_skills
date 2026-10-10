@@ -22,20 +22,23 @@
 ### OSS 目标路径格式
 
 ```
-https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/<bundle-id>/<bundle-id>-<variant>.zip
+https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/<bundle_id>/<bundle-id>-<variant>.zip
 ```
 
-**注**：文件名不含版本号（`latest` 语义），始终保持最新。历史版本可追溯 GitLab Generic Package Registry。
+**注**：
+- 文件夹名 `<bundle_id>` 使用**下划线格式**（如 `ai_customer`、`recommend_courses`）
+- 文件名 `<bundle-id>` 使用**连字符格式**（如 `ai-customer-coach.zip`）
+- 文件名不含版本号（`latest` 语义），始终保持最新。历史版本可追溯 GitLab Generic Package Registry。
 
 ### 当前 Bundle 清单
 
-截至 2026-09-30，需要上传的 bundle 共 3 个：
+截至 2026-10-09，需要上传的 bundle 共 3 个：
 
 | Bundle ID | 版本 | 技能数 | 说明 |
 |-----------|------|--------|------|
-| `ai-customer` | 1.0.4 | 2 | 销售陪练与智能评测 |
-| `flashcard` | 1.0.3 | 2 | AI 闪卡学习工具 |
-| `recommend-courses` | 1.0.2 | 4 | 课程推荐与任务下发 |
+| `ai-customer` | 1.0.5 | 2 | 销售陪练与智能评测 |
+| `flashcard` | 1.0.4 | 2 | AI 闪卡学习工具 |
+| `recommend-courses` | 1.0.3 | 4 | 课程推荐与任务下发 |
 
 ### 源文件路径（promote 产物）
 
@@ -80,19 +83,19 @@ dist/universal/latest/
 
 | 源文件路径 | OSS 目标 URL |
 |-----------|--------------|
-| `dist/universal/latest/ai-customer-coach.zip` | `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/ai-customer/ai-customer-coach.zip` |
-| `dist/universal/latest/ai-customer-dingtalk.zip` | `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/ai-customer/ai-customer-dingtalk.zip` |
-| `dist/universal/latest/ai-customer-test.zip` | `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/ai-customer/ai-customer-test.zip` |
+| `dist/universal/latest/ai-customer-coach.zip` | `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/ai_customer/ai-customer-coach.zip` |
+| `dist/universal/latest/ai-customer-dingtalk.zip` | `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/ai_customer/ai-customer-dingtalk.zip` |
+| `dist/universal/latest/ai-customer-test.zip` | `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/ai_customer/ai-customer-test.zip` |
 | `dist/universal/latest/flashcard-coach.zip` | `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/flashcard/flashcard-coach.zip` |
 | `dist/universal/latest/flashcard-dingtalk.zip` | `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/flashcard/flashcard-dingtalk.zip` |
 | `dist/universal/latest/flashcard-test.zip` | `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/flashcard/flashcard-test.zip` |
-| `dist/universal/latest/recommend-courses-coach.zip` | `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/recommend-courses/recommend-courses-coach.zip` |
-| `dist/universal/latest/recommend-courses-dingtalk.zip` | `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/recommend-courses/recommend-courses-dingtalk.zip` |
-| `dist/universal/latest/recommend-courses-test.zip` | `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/recommend-courses/recommend-courses-test.zip` |
+| `dist/universal/latest/recommend-courses-coach.zip` | `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/recommend_courses/recommend-courses-coach.zip` |
+| `dist/universal/latest/recommend-courses-dingtalk.zip` | `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/recommend_courses/recommend-courses-dingtalk.zip` |
+| `dist/universal/latest/recommend-courses-test.zip` | `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/recommend_courses/recommend-courses-test.zip` |
 
 **命名规则**：
-- OSS 路径中的 `<bundle-id>` 目录名使用连字符格式（如 `ai-customer`，非下划线）
-- OSS 文件名格式：`<bundle-id>-<variant>.zip`（不含版本号）
+- OSS 路径中的文件夹名使用**下划线格式**（如 `ai_customer`、`recommend_courses`，非连字符）
+- OSS 文件名使用**连字符格式**（如 `ai-customer-coach.zip`）
 - 每次上传覆盖同名文件，保持 `latest` 语义
 - 上传映射由 `index.json` 的 `bundleId` + `latestFile` 字段驱动（不解析文件名）——即使某 bundle 的 `distributionName` 与 bundle-id 分歧，OSS 路径仍然正确
 
@@ -156,9 +159,9 @@ python3 scripts/upload_oss.py --skip-remote-verify
 ```
 
 核心逻辑：
-- **index.json 驱动映射**：`oss_key = mcpskills/coach/{item.bundleId}/{item.latestFile}`，不解析文件名
+- **index.json 驱动映射**：`oss_key = mcpskills/coach/{bundle_id_with_underscores}/{item.latestFile}`，其中 `bundle_id_with_underscores = item.bundleId.replace("-", "_")`，不解析文件名
 - **上传前校验**：本地 SHA-256 与 index 记录一致才上传；index 条目缺文件 / 目录存在孤儿 zip 均 fail-fast
-- **覆盖上传**：`put_object_from_file` + `Content-Type: application/zip` + `Cache-Control: no-cache`（latest 对象变更后不长期复用旧包）
+- **覆盖上传**：`put_object_from_file` + `Content-Type: application/zip` + `Cache-Control: no-cache` + `x-oss-object-acl: public-read`（latest 对象变更后不长期复用旧包；bucket 为 private 模式，通过对象级 ACL 实现公开可读）
 - **上传可靠性**：网络错误和 408/429/5xx 自动指数退避重试；上传请求写入 SHA-256 元数据，并通过 HEAD 核验对象大小和元数据
 - **索引安全校验**：拒绝路径穿越、非法文件名、重复 OSS key、损坏 SHA-256 和目录外 symlink，避免错误索引误传对象
 - **oss2 惰性 import**：`--dry-run` 零依赖可跑；正式上传缺凭证或缺 SDK 时给出明确报错

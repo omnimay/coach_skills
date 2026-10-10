@@ -2,7 +2,9 @@
 """OSS 通用包上传（docs/oss-upload-automation.md）— 发布六步 ⑥-b 渠道交付。
 
 将 promote 产物 dist/universal/latest/*.zip 上传到阿里云 OSS：
-    https://<bucket>.<endpoint>/mcpskills/coach/<bundle-id>/<bundle-id>-<variant>.zip
+    https://<bucket>.<endpoint>/mcpskills/coach/<bundle_id>/<bundle-id>-<variant>.zip
+
+其中 `<bundle_id>` 为 bundleId 中的连字符替换为下划线（如 ai_customer），`<bundle-id>` 保持原格式（如 ai-customer）。
 
 设计要点：
   - 映射由 index.json 驱动（bundleId + latestFile），不解析文件名——
@@ -42,6 +44,7 @@ OSS_KEY_PREFIX = "mcpskills/coach"
 UPLOAD_HEADERS = {
     "Content-Type": "application/zip",
     "Cache-Control": "no-cache, max-age=0, must-revalidate",
+    "x-oss-object-acl": "public-read",  # 每个对象单独设为公开可读（bucket 为 private 模式）
 }
 REQUIRED_ENV = ("OSS_ACCESS_KEY_ID", "OSS_ACCESS_KEY_SECRET", "OSS_ENDPOINT", "OSS_BUCKET")
 DEFAULT_RETRIES = 3
@@ -143,7 +146,10 @@ def build_upload_plan(latest_dir: Path) -> list[dict]:
             fail(f"index 条目 {key} 的 sha256 不合法")
         if latest_file in seen_files:
             fail(f"index 中 latestFile 重复：{latest_file}")
-        oss_key = f"{OSS_KEY_PREFIX}/{bundle_id}/{latest_file}"
+        # OSS 文件夹名使用下划线格式（bundle_id 中的连字符转为下划线）
+        # bundle_id 已在上方通过 _safe_segment 校验，replace("-", "_") 不会引入非法字符
+        oss_folder = bundle_id.replace("-", "_")
+        oss_key = f"{OSS_KEY_PREFIX}/{oss_folder}/{latest_file}"
         if oss_key in seen_keys:
             fail(f"index 中 OSS 路径重复：{oss_key}")
         seen_files.add(latest_file)

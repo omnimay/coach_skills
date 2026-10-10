@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "flashcard",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "skills": [
     "flashcard_design",
     "coach-mcp-connect"
