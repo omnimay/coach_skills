@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "recommend-courses",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "skills": [
     "ai_customer_design",
     "coach-mcp-connect",

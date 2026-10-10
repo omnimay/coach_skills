@@ -12,7 +12,7 @@
 
 **坐标** = `bundle ID × 版本 × target × 变体`（WorkBuddy 的变体 = 环境：coach / test / dingtalk）
 
-**tag 格式**：`<bundle-id>-v<SemVer>`（如 `ai-customer-v1.0.2`）
+**tag 格式**：`<bundle-id>-v<SemVer>`（如 `ai-customer-v1.0.5`）
 
 ## 发布流程
 
@@ -30,7 +30,7 @@ flowchart TD
 | 步骤 | 做什么 | 关键约束 |
 |---|---|---|
 | ① MR 准备 | 改代码 + 升版本 + 写 CHANGELOG + 写 release-plan.json | `check.py` 静态检查通过；合并前不动 `latest/` |
-| ② 打 tag | 创建 `<bundle-id>-v<SemVer>` 受保护 tag | tag 与 bundle.json 的 id/version 精确匹配 |
+| ② 打 tag | 创建 `<bundle-id>-v<SemVer>` 受保护 tag | tag 名称 = `bundle.json` 的 `id` + `-v` + `version`（三者必须一致，否则 CI `plan` 阶段报错） |
 | ③ 构建 | 共用 `build_bundle_zip` 函数（CI 自动） | 同输入 → 同哈希 |
 | ④ 归档 | 上传 Registry + 创建 Release（CI 自动） | 同坐标同哈希 = 安全重试；不同哈希 = 阻断 |
 | ⑤ 提升 | 复制 ZIP 到 `latest/`，更新 `index.json`（CI 自动） | 全有或全无；碰撞检测读默认分支实际索引 |
@@ -86,10 +86,10 @@ python3 scripts/pack.py --out dist/workbuddy               # 指定输出目录�
 ### release_bundle.py（发布入口）
 
 ```bash
-python3 scripts/release_bundle.py plan ai-customer-v1.0.2         # 预览坐标清单
-python3 scripts/release_bundle.py archive ai-customer-v1.0.2      # 构建 + 上传 Registry + 创建 Release
-python3 scripts/release_bundle.py promote ai-customer-v1.0.2      # 复制到 latest/ + 更新 index.json
-python3 scripts/release_bundle.py full ai-customer-v1.0.2 --dry-run  # 全流程预览（不实际执行）
+python3 scripts/release_bundle.py plan ai-customer-v1.0.5         # 预览发布计划（可安全运行，不执行任何修改）
+python3 scripts/release_bundle.py archive ai-customer-v1.0.5      # 构建 + 上传 Registry + 创建 Release
+python3 scripts/release_bundle.py promote ai-customer-v1.0.5      # 复制到 latest/ + 更新 index.json
+python3 scripts/release_bundle.py full ai-customer-v1.0.5 --dry-run  # 全流程预览（不实际执行）
 ```
 
 环境变量（CI 自动注入）：
@@ -106,7 +106,7 @@ python3 scripts/release_bundle.py full ai-customer-v1.0.2 --dry-run  # 全流程
 | `check` | MR / main push | `check.py` + `pytest` |
 | `build` | tag push | `plan` → `archive`（构建 + 上传 + Release） |
 | `promote` | tag push（需 build 成功） | 复制到 `latest/` + 提交推送 |
-| `upload` | tag push（需 promote 成功 + `OSS_*` 变量已配置） | `upload_oss.py` 上传通用包到 OSS |
+| `upload-oss` | tag push（需 promote 成功 + `OSS_*` 变量已配置） | `upload_oss.py` 上传通用包到 OSS |
 
 `resource_group: release-dist` 保证发布作业串行化。
 
@@ -119,8 +119,8 @@ python3 scripts/release_bundle.py full ai-customer-v1.0.2 --dry-run  # 全流程
 
 **机器可读索引**：`dist/<target>/latest/index.json`（RFC-0006 §3.3）
 
-**通用包（OSS）**：`mcpskills/coach/<bundle-id>/<bundle-id>-<variant>.zip`
-- 示例：`https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/ai-customer/ai-customer-coach.zip`
+**通用包（OSS）**：`mcpskills/coach/<bundle_id>/<bundle-id>-<variant>.zip`（文件夹名下划线，文件名连字符）
+- 示例：`https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/ai_customer/ai-customer-coach.zip`
 - 用途：供用户直接从网上下载 ZIP 自行安装技能（不依赖 WorkBuddy 平台）
 - 当前状态：CI `upload-oss` 作业在 promote 后自动上传（`OSS_*` 变量未配置时跳过，详见 [oss-upload-automation.md](oss-upload-automation.md)）
 

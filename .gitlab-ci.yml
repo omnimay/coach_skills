@@ -6,7 +6,7 @@
 #   promote     → tag 触发：复制 ZIP 到 latest/，更新 index.json，提交推送
 #   upload-oss  → tag 触发：上传通用包到 OSS（mcpskills/coach/，latest 语义）
 #
-# tag 格式：<bundle-id>-v<SemVer>（如 ai-customer-v1.0.2）
+# tag 格式：<bundle-id>-v<SemVer>（如 ai-customer-v1.0.5）
 # 环境变量：GITLAB_API_URL / GITLAB_PROJECT_ID / GITLAB_TOKEN（CI/CD Settings 配置）
 #           OSS_ACCESS_KEY_ID / OSS_ACCESS_KEY_SECRET / OSS_ENDPOINT / OSS_BUCKET
 #           OSS_SECURITY_TOKEN（可选，STS 临时凭证）

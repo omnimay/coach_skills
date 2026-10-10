@@ -33,11 +33,11 @@
    ↓
 ② 打 tag（人工）
    ↓
-③ 构建（自动）← release_bundle.py archive
+③ 构建（CI 自动）← tag 触发 release_bundle.py archive
    ↓
-④ 归档（自动）← release_bundle.py archive
+④ 归档（CI 自动）← tag 触发 release_bundle.py archive
    ↓
-⑤ 提升（自动）← release_bundle.py promote
+⑤ 提升（CI 自动）← tag 触发 release_bundle.py promote
    ↓
 ⑥ 渠道交付（人工）
 ```
@@ -106,33 +106,70 @@ git push origin feat/xxx
 
 ## 阶段二：打 tag（人工）
 
-### 任务清单
+> **核心原则**：tag 名称 = `bundle.json` 中的 `id` + `-v` + `version`，**三个字段必须完全一致**。CI 会用 tag 名称构建包，不匹配会导致发布失败。
 
-- [ ] **切到 main 分支**
-  ```bash
-  git checkout main
-  git pull origin main
-  ```
+### 逐步执行
 
-- [ ] **创建 tag**
-  - [ ] tag 格式：`<bundle-id>-v<SemVer>`
-  - [ ] 示例：`ai-customer-v1.0.2`
-  - [ ] 确保与 `bundle.json` 的 `id` 和 `version` 精确匹配
+```bash
+# 1. 切到 main 并拉取最新
+git checkout main
+git pull origin main
 
-  ```bash
-  git tag ai-customer-v1.0.2
-  ```
+# 2. 查看 bundle.json 的 id 和 version（以 ai-customer 为例）
+cat bundles/ai-customer/bundle.json | grep -E '"id"|"version"'
+# 输出示例：
+#   "id": "ai-customer",
+#   "version": "1.0.5"
+# → tag 名称：ai-customer-v1.0.5
 
-- [ ] **推送 tag**
-  ```bash
-  git push origin ai-customer-v1.0.2
-  ```
+# 3. 创建 tag
+git tag ai-customer-v1.0.5
 
-- [ ] **验证 tag**
-  ```bash
-  git tag -l | grep ai-customer
-  git show ai-customer-v1.0.2
-  ```
+# 4. 推送 tag
+git push origin ai-customer-v1.0.5
+
+# 5. 验证 tag 已创建
+git tag -l | grep ai-customer-v1.0.5
+```
+
+### ⚠️ 常见错误与排查
+
+| 错误 | 原因 | 解决方法 |
+|------|------|----------|
+| `plan` 阶段报 "tag 与 bundle.json 不匹配" | tag 版本号与 `bundle.json` 的 `version` 不一致 | 删除 tag，修正版本号后重新创建 |
+| tag 格式校验失败 | 使用了下划线 `_` 而非连字符 `-` | 确保用 `<bundle-id>-v<version>` 格式 |
+| `fatal: tag already exists` | 该 tag 已被创建过 | 删除旧 tag 后重新创建（见下方命令） |
+
+**重新创建 tag 的命令**：
+```bash
+# 删除本地和远程 tag
+git tag -d ai-customer-v1.0.5
+git push origin :refs/tags/ai-customer-v1.0.5
+
+# 然后重新创建并推送
+git tag ai-customer-v1.0.5
+git push origin ai-customer-v1.0.5
+```
+
+### 推送 tag 后的 CI 流水线效果
+
+推送 tag 后，GitLab CI 自动触发四阶段流水线（**无需人工干预**）：
+
+```
+check → build → promote → upload-oss
+```
+
+| 阶段 | 自动执行内容 | 产物 |
+|---|---|---|
+| `check` | 静态检查 + 单元测试 | CI 通过/失败状态 |
+| `build` | `plan`（校验 tag 与 release-plan 一致性）→ 构建 ZIP → 上传 Registry → 创建 Release | Release 页面 + Registry 归档 |
+| `promote` | 复制 ZIP 到 `dist/<target>/latest/` → 更新 `index.json` → 提交推送 main | `dist/workbuddy/latest/` + `dist/universal/latest/` |
+| `upload-oss` | 上传通用包到 OSS（`OSS_*` 变量未配置时跳过） | OSS 可访问的 ZIP 文件 |
+
+**人工仅需确认**：
+1. 流水线是否全部通过（GitLab → CI/CD → Pipelines）
+2. Release 描述中的 SHA-256 是否正确
+3. 阶段五：手动提交 WorkBuddy 平台
 
 ---
 
@@ -151,39 +188,39 @@ git push origin feat/xxx
 
 - [ ] **（可选）预览发布计划**
   ```bash
-  python3 scripts/release_bundle.py plan ai-customer-v1.0.2
+  python3 scripts/release_bundle.py plan ai-customer-v1.0.5
   ```
 
 ### 执行归档
 
 ```bash
-python3 scripts/release_bundle.py archive ai-customer-v1.0.2
+python3 scripts/release_bundle.py archive ai-customer-v1.0.5
 ```
 
 ### 预期输出
 
 ```
-📦 ai-customer-v1.0.2-coach.zip
+📦 ai-customer-v1.0.5-coach.zip
    构建完成：114356 bytes, SHA-256=9adb179ae2255953...
    上传完成：SHA-256=9adb179ae2255953...
    ✓ 下载核验通过
 
-📦 ai-customer-v1.0.2-test.zip
+📦 ai-customer-v1.0.5-test.zip
    构建完成：114359 bytes, SHA-256=80ff546c4c33a610...
    上传完成：SHA-256=80ff546c4c33a610...
    ✓ 下载核验通过
 
-📦 ai-customer-v1.0.2-dingtalk.zip
+📦 ai-customer-v1.0.5-dingtalk.zip
    构建完成：114366 bytes, SHA-256=80d012a5f300289d...
    上传完成：SHA-256=80d012a5f300289d...
    ✓ 下载核验通过
 
-📝 Release 已创建/更新：ai-customer-v1.0.2
+📝 Release 已创建/更新：ai-customer-v1.0.5
 ```
 
 ### 验证
 
-- [ ] 查看 GitLab Release：`https://git.mgvai.cn/coach/coachskills/-/releases/ai-customer-v1.0.2`
+- [ ] 查看 GitLab Release：`https://git.mgvai.cn/coach/coachskills/-/releases/ai-customer-v1.0.5`
 - [ ] 确认 Release 描述包含所有坐标的 SHA-256
 
 ---
@@ -193,7 +230,7 @@ python3 scripts/release_bundle.py archive ai-customer-v1.0.2
 ### 执行提升
 
 ```bash
-python3 scripts/release_bundle.py promote ai-customer-v1.0.2
+python3 scripts/release_bundle.py promote ai-customer-v1.0.5
 ```
 
 ### 预期输出
@@ -240,7 +277,7 @@ python3 scripts/release_bundle.py promote ai-customer-v1.0.2
 
 ```bash
 git add dist/workbuddy/latest/
-git commit -m "chore: promote ai-customer-v1.0.2 to latest/"
+git commit -m "chore: promote ai-customer-v1.0.5 to latest/"
 git push origin main
 ```
 
@@ -264,7 +301,8 @@ git push origin main
 - [ ] **确认 OSS 通用包**（CI 自动上传，人工核验）
   - [ ] 流水线 `upload-oss` 作业成功（OSS_* 变量未配置时作业跳过，属预期）
   - [ ] 抽查下载 URL 可访问，如：
-        `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/<bundle-id>/<bundle-id>-<variant>.zip`
+        `https://megaview.oss-cn-zhangjiakou.aliyuncs.com/mcpskills/coach/<bundle_id>/<bundle-id>-<variant>.zip`
+        （注：文件夹名 `<bundle_id>` 用下划线，文件名 `<bundle-id>` 用连字符）
 
 - [ ] **更新 Release 描述**
   - [ ] 编辑 Release 描述中的"渠道状态"表格
@@ -276,11 +314,11 @@ git push origin main
 ```markdown
 ## 发布资产
 
-Tag: `ai-customer-v1.0.2`
+Tag: `ai-customer-v1.0.5`
 
-- **ai-customer/coach**: `ai-customer-v1.0.2-coach.zip` SHA-256: `9adb179ae2255953...`
-- **ai-customer/test**: `ai-customer-v1.0.2-test.zip` SHA-256: `80ff546c4c33a610...`
-- **ai-customer/dingtalk**: `ai-customer-v1.0.2-dingtalk.zip` SHA-256: `80d012a5f300289d...`
+- **ai-customer/coach**: `ai-customer-v1.0.5-coach.zip` SHA-256: `9adb179ae2255953...`
+- **ai-customer/test**: `ai-customer-v1.0.5-test.zip` SHA-256: `80ff546c4c33a610...`
+- **ai-customer/dingtalk**: `ai-customer-v1.0.5-dingtalk.zip` SHA-256: `80d012a5f300289d...`
 
 ## 渠道状态
 
@@ -299,16 +337,16 @@ Tag: `ai-customer-v1.0.2`
 
 ```bash
 # 预览发布计划
-python3 scripts/release_bundle.py plan ai-customer-v1.0.2 --dry-run
+python3 scripts/release_bundle.py plan ai-customer-v1.0.5 --dry-run
 
 # 预览 archive 流程（不实际上传）
-python3 scripts/release_bundle.py archive ai-customer-v1.0.2 --dry-run
+python3 scripts/release_bundle.py archive ai-customer-v1.0.5 --dry-run
 
 # 预览 promote 流程（不实际更新 latest/）
-python3 scripts/release_bundle.py promote ai-customer-v1.0.2 --dry-run
+python3 scripts/release_bundle.py promote ai-customer-v1.0.5 --dry-run
 
 # 预览全流程
-python3 scripts/release_bundle.py full ai-customer-v1.0.2 --dry-run
+python3 scripts/release_bundle.py full ai-customer-v1.0.5 --dry-run
 ```
 
 ---
@@ -339,9 +377,9 @@ A:
 
 A: 是的。CI 配置了四阶段流水线：
 - **check 阶段**：MR 或 main 分支 push 时执行静态检查 + 单元测试
-- **build 阶段**：tag push 时自动执行 `archive`（构建 + 上传 Registry + 创建 Release）
+- **build 阶段**：tag push 时先执行 `plan` 校验 tag 与 release-plan 一致性，再执行 `archive`（构建 + 上传 Registry + 创建 Release）
 - **promote 阶段**：tag push 时自动执行 `promote`（更新 latest/ + 提交 + 推送）
-- **upload 阶段**：tag push 时自动上传通用包到 OSS（`OSS_*` 变量未配置时跳过）
+- **upload-oss 阶段**：tag push 时自动上传通用包到 OSS（`OSS_*` 变量未配置时跳过）
 
 环境变量（`GITLAB_API_URL` / `GITLAB_PROJECT_ID` / `GITLAB_TOKEN`）需在 GitLab CI/CD Settings 中配置。详见 `.gitlab-ci.yml`。
 
