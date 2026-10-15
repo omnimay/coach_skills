@@ -113,6 +113,8 @@ upload-oss:
 sync-github:
   stage: upload
   image: python:3.11
+  tags:
+    - oversea                         # 使用可访问 GitHub 的海外 Runner
   resource_group: github-sync
   variables:
     GIT_STRATEGY: clone                # 全新克隆，避免 runner 复用浅克隆工作区
