@@ -136,8 +136,11 @@ sync-github:
     - git remote add github "$GITHUB_REPO_URL"
     # GitLab 为唯一事实源；force-with-lease 允许镜像追平，同时防止覆盖
     # 作业启动后 GitHub 上刚刚产生的外部提交。
-    - git fetch github "$CI_DEFAULT_BRANCH" || true
-    - git push --force-with-lease github "HEAD:refs/heads/$CI_DEFAULT_BRANCH"
+    # Runner 的 credential.interactive=never 会让新版 Git 跳过 askpass。
+    # 仅覆盖这两个命令；GIT_TERMINAL_PROMPT=0 仍禁止终端输入。
+    # 清空继承的 credential.helper，避免 PAT 被其他 helper 保存或替换。
+    - git -c credential.helper= -c credential.interactive=true fetch github "$CI_DEFAULT_BRANCH" || true
+    - git -c credential.helper= -c credential.interactive=true push --force-with-lease github "HEAD:refs/heads/$CI_DEFAULT_BRANCH"
   after_script:
     - rm -f "$CI_PROJECT_DIR/.github-askpass.sh"
   rules:
