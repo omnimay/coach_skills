@@ -99,15 +99,17 @@ git clone https://github.com/omnimay/coach_skills.git
 
 ## 更新说明
 
-技能需手动更新。更新命令：
+技能需手动更新。按技能名更新（不支持 `owner/repo` 格式）：
 
 ```bash
-# 更新当前项目技能
-npx skills update -p
+# 更新本项目所有技能
+npx skills update ai-customer-design flashcard-design recommend-courses coach-mcp-connect
 
-# 更新全局技能
-npx skills update -g
+# 或更新单个技能
+npx skills update ai-customer-design
 ```
+
+更新后，宿主工具（Claude Code 等）下次会话自动加载新版本。
 
 ## License & Notices
 
