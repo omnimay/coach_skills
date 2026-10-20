@@ -7,7 +7,7 @@
 **必须**使用技能自带的上传脚本：
 
 ```bash
-python3 <技能安装目录>/flashcard_design/scripts/upload_document.py <文件路径>
+python3 <技能安装目录>/flashcard-design/scripts/upload_document.py <文件路径>
 ```
 
 脚本会自动完成：
@@ -26,7 +26,7 @@ python3 <技能安装目录>/flashcard_design/scripts/upload_document.py <文件
 
 | 错误 | 原因 | 处理 |
 |------|------|------|
-| `mcp.json not found` | bundle 根目录缺少 mcp.json | 检查 bundle 完整性 |
+| `mcp.json not found` | mcp.json 缺失 | 复制 `coach-mcp-connect/mcp.json.example` 为 mcp.json 并填入真实 key |
 | `MCP authentication failed` | 认证失败 | 使用 coach-mcp-connect 技能重新连接 |
 | `File too large` | 文件超过 50MB | 压缩文件或走 PC 端直传 |
 | `HTTP 401/403` | 权限问题 | 使用 coach-mcp-connect 技能排查 |

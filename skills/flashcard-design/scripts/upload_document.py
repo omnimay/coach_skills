@@ -55,12 +55,17 @@ def _find_auth_profile() -> Optional[dict]:
     return None
 
 
-def _load_mcp_config() -> dict:
+def _load_mcp_config(mcp_url_override: Optional[str] = None) -> dict:
     """从 mcp.json 加载配置（只读取一次）"""
     mcp_json: Optional[str] = _find_mcp_json()
     if not mcp_json:
+        if mcp_url_override:
+            print("Error: --mcp-url given but mcp.json not found", file=sys.stderr)
+            print("Need mcp.json to provide Authorization. Copy coach-mcp-connect/mcp.json.example", file=sys.stderr)
+            sys.exit(1)
         print("Error: mcp.json not found", file=sys.stderr)
-        print("Please ensure mcp.json is in the bundle root directory", file=sys.stderr)
+        print("Please copy coach-mcp-connect/mcp.json.example to mcp.json (project root or ~/mcp.json)", file=sys.stderr)
+        print("and fill in the real key. See README First Configuration step 3.", file=sys.stderr)
         sys.exit(1)
 
     try:
@@ -69,6 +74,10 @@ def _load_mcp_config() -> dict:
         servers = config.get("mcpServers", {})
         if not servers:
             raise KeyError("No servers configured in mcp.json")
+        # Apply URL override if given
+        if mcp_url_override:
+            server_config = next(iter(servers.values()))
+            server_config["url"] = mcp_url_override
         return config
     except (KeyError, json.JSONDecodeError) as e:
         print(f"Error: Invalid mcp.json format: {e}", file=sys.stderr)
@@ -336,6 +345,7 @@ def poll_parse_status(file_id: int, mcp_url: str, auth_headers: dict, recovery_t
 def main():
     parser = argparse.ArgumentParser(description="Upload document to MCP server")
     parser.add_argument("file_path", help="Path to the file to upload")
+    parser.add_argument("--mcp-url", help="Override MCP server URL (Authorization still from mcp.json)")
     args = parser.parse_args()
 
     if os.path.islink(args.file_path):
@@ -346,7 +356,7 @@ def main():
         print(f"Error: Not a file or file not found: {args.file_path}", file=sys.stderr)
         sys.exit(1)
 
-    config = _load_mcp_config()
+    config = _load_mcp_config(args.mcp_url)
     mcp_url = _get_mcp_url(config)
     auth_headers = _get_auth_headers(mcp_url, config)
 

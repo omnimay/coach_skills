@@ -1,4 +1,4 @@
-> 本文档展开 SKILL.md §总编排的每一步。建课工作流本体归 ai_customer_design 技能，本文只写委托方式，不重复其内容。
+> 本文档展开 SKILL.md §总编排的每一步。建课工作流本体归 ai-customer-design 技能，本文只写委托方式，不重复其内容。
 
 # 下发工作流详解
 
@@ -50,13 +50,13 @@
 
 ## 3. 建课委托（未命中才走）
 
-- **委托方式**：按 `ai_customer_design` 技能的 §建课工作流 执行（异步工具集 `training.ai_customer.create / update / update_status / get`）
-- 课程简报构造：报告里的短板结论 = 评估维度输入；场景与 AI 角色按报告业务背景补全；六要素检查清单见 ai_customer_design §课程简报检查清单
+- **委托方式**：按 `ai-customer-design` 技能的 §建课工作流 执行（异步工具集 `training.ai_customer.create / update / update_status / get`）
+- 课程简报构造：报告里的短板结论 = 评估维度输入；场景与 AI 角色按报告业务背景补全；六要素检查清单见 ai-customer-design §课程简报检查清单
 - 继承红线（详见该技能，此处仅提示）：
   - `ai_customer.update` 秒返 taskId 即发送成功，**不重复提交**
   - 完成判定唯一权威：`ai_customer.get` 返回 `create_status_created` 且 `stages` 非空；不信 AI 回复文字
   - 并发建课 ≤3
-- 报告原文要作为课程参考资料时，走 ai_customer_design 的文档上传路径（`file.upload_document` + `metadata.fileIds`），不要把报告改写成纯文字传 message
+- 报告原文要作为课程参考资料时，走 ai-customer-design 的文档上传路径（`file.upload_document` + `metadata.fileIds`），不要把报告改写成纯文字传 message
 - **新课未就绪（get 验证未过）→ 不进入下发段**：告知用户课程生成中，待就绪后再继续下发步骤
 
 ## 4. 打标回写（闭环的必要步骤）
@@ -123,7 +123,7 @@
 
 **错误码**：`40001` 参数无效（含 endTime 格式/过期）；`40301` 无任务发布权限，或 userIds 含非本组织/已离职用户——**两种含义都不要重试**（改参数无效，向用户报告）；`40401` 课程不存在；`41001` 课程已删除。
 
-开放任务（不传 userIds）无需权限，行为与旧版一致；链接与二维码双交付规则见 ai_customer_design 的交付章节。
+开放任务（不传 userIds）无需权限，行为与旧版一致；链接与二维码双交付规则见 ai-customer-design 的交付章节。
 
 ## 实测经验标注（M07）
 

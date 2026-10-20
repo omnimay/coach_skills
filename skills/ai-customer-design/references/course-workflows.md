@@ -107,7 +107,7 @@ Step 5: training.task.create_open_project → 生成新链接 → 双交付
 ### ② 二维码图片（必达项）
 
 ```bash
-python3 <技能安装目录>/ai_customer_design/scripts/render_qr.py '<练习链接>' --out '<可写目录>/practice.png'
+python3 <技能安装目录>/ai-customer-design/scripts/render_qr.py '<练习链接>' --out '<可写目录>/practice.png'
 ```
 
 脚本成功后会打印 PNG 文件的**绝对路径**（不指定 `--out` 时默认写系统临时目录）。

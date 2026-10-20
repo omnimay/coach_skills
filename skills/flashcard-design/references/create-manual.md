@@ -11,7 +11,7 @@ Step 1: training.flashcard.create()
         （如「课程骨架已就绪，正在出题…」；editUrl 可先给，供用户随时查看）
 
 Step 2: (可选) 用户上传文档 → 调用脚本上传
-        python3 <技能安装目录>/flashcard_design/scripts/upload_document.py <文件路径>
+        python3 <技能安装目录>/flashcard-design/scripts/upload_document.py <文件路径>
         → 返回 {"fileId": 7667, "status": "ready", ...}
         → 轮询 training.file.status 至 parseStatus=2（脚本自动完成）
 

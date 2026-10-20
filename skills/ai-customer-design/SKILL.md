@@ -1,12 +1,12 @@
 ---
-name: ai_customer_design
+name: ai-customer-design
 description: 创建和修改公司培训课程、上传课程资料、查询课程并生成练习链接。触发关键词：建课、AI 客户课程、AI 设计师对话、改课、查询培训课程、生成练习链接。
 metadata:
   description_zh: 创建和修改公司培训课程，上传资料并生成练习入口。
   description_en: Create and edit company training courses and generate practice links.
 ---
 
-# 公司培训课程技能（ai_customer_design）
+# 公司培训课程技能（ai-customer-design）
 
 通过 MCP 协议连接企业培训服务器，执行建课、改课、查询等操作。
 
@@ -204,7 +204,7 @@ Step 5: training.task.create_open_project({"courseId":<id>}) → 生成新链接
 **必须**使用脚本上传：
 
 ```bash
-python3 <技能安装目录>/ai_customer_design/scripts/upload_document.py <文件路径>
+python3 <技能安装目录>/ai-customer-design/scripts/upload_document.py <文件路径>
 ```
 
 脚本返回 `{"fileId": 7667, "fileName": "doc.pdf", "status": "ready", ...}`。上传成功后，在建课对话中通过 `metadata.fileIds: [fileId]` 传递。
@@ -236,11 +236,11 @@ python3 <技能安装目录>/ai_customer_design/scripts/upload_document.py <文�
 **渲染脚本**（技能包内，纯本地、无网络）：
 
 ```bash
-python3 <技能安装目录>/ai_customer_design/scripts/render_qr.py '<练习链接>'
+python3 <技能安装目录>/ai-customer-design/scripts/render_qr.py '<练习链接>'
 
 # 多门课程时指定不同输出文件名，避免覆盖
-python3 <技能安装目录>/ai_customer_design/scripts/render_qr.py '<练习链接>' --out course1.png
-python3 <技能安装目录>/ai_customer_design/scripts/render_qr.py '<练习链接>' --out course2.png
+python3 <技能安装目录>/ai-customer-design/scripts/render_qr.py '<练习链接>' --out course1.png
+python3 <技能安装目录>/ai-customer-design/scripts/render_qr.py '<练习链接>' --out course2.png
 ```
 
 脚本成功后会打印 PNG 文件的**绝对路径**（不指定 `--out` 时默认写入系统临时目录）。
@@ -252,7 +252,7 @@ python3 <技能安装目录>/ai_customer_design/scripts/render_qr.py '<练习链
 3. **富媒体卡片 / 附件** —— 宿主提供图片卡片、文件卡片等富媒体附件能力时，把 PNG 作为附件/卡片嵌入。
 4. **输出文件路径 + 文字说明** —— 当宿主既不能渲染图片、也不能 markdown 渲染图片时，**必须**把脚本打印的 PNG 绝对路径原文输出，并明确告知用户"二维码图片已生成，路径：<path>，可在本地打开查看/扫码"。这是最后的兜底，但**绝不可省略**——没有它用户根本找不到图片。
 
-> 路径说明：`render_qr.py` 位于 `ai_customer_design` 技能目录下（不是 `coach-mcp-connect`）。
+> 路径说明：`render_qr.py` 位于 `ai-customer-design` 技能目录下（不是 `coach-mcp-connect`）。
 > `--out` 参数路径相对于**当前工作目录**（cwd），不是脚本目录。
 
 **禁止**：

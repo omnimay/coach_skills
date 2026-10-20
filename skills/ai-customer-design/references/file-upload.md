@@ -15,7 +15,7 @@
 ### 步骤 1：使用脚本上传
 
 ```bash
-python3 <技能安装目录>/ai_customer_design/scripts/upload_document.py <文件路径>
+python3 <技能安装目录>/ai-customer-design/scripts/upload_document.py <文件路径>
 ```
 
 脚本返回 JSON：
@@ -65,7 +65,7 @@ elif result["status"] == "failed":
 }
 ```
 
-**注意**：完整的工具白名单请参考 `<技能安装目录>/ai_customer_design/SKILL.md` 的"工具白名单"章节。
+**注意**：完整的工具白名单请参考 `<技能安装目录>/ai-customer-design/SKILL.md` 的"工具白名单"章节。
 
 ## 错误处理
 

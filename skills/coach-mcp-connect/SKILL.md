@@ -30,7 +30,7 @@ description: MCP 连接诊断与恢复。当 MCP 工具不可用时，调用此�
 **标准链路**（必须按顺序执行）：
 
 1. **auth**：运行 `mcp_diagnose.py auth` → 浏览器 OAuth → 输出 token
-2. **configure**：将 URL + Authorization 写入**宿主注册表** `<agent的MCP配置文件>`（不是技能包 mcp.json）
+2. **configure**：将 URL + Authorization 写入**宿主注册表** `<agent的MCP配置文件>`（不是 `mcp.json`）
 3. **reconnect**：在宿主连接器页 Trust/重连（必须用户手动完成）
 4. **native**：宿主注册原生 MCP 工具 → 所有业务调用走原生工具
 
@@ -57,9 +57,9 @@ description: MCP 连接诊断与恢复。当 MCP 工具不可用时，调用此�
 - ✅ 用户已在宿主连接器页完成 Trust/重连
 - ✅ 宿主已注册原生 MCP 工具（可通过直接调用 `training.organization.tree` 验证，或通过工具搜索 `mcp__<server_name>__*` 模式看到工具列表）
 
-**标准 2**：技能包 mcp.json 和原生 MCP 连接器配置同步
-- ✅ 技能包 mcp.json（`<技能安装目录>/mcp.json`）的 `url` 与原生连接器 `<agent的MCP配置文件>` 的 `url` 一致
-- ✅ 技能包 mcp.json 的 `headers.Authorization` 与原生连接器的 `headers.Authorization` 一致
+**标准 2**：`mcp.json` 位于项目根或 `~/mcp.json`，和原生 MCP 连接器配置同步
+- ✅ `mcp.json` 位于项目根或 `~/mcp.json` 的 `url` 与原生连接器 `<agent的MCP配置文件>` 的 `url` 一致
+- ✅ `mcp.json` 位于项目根或 `~/mcp.json` 的 `headers.Authorization` 与原生连接器的 `headers.Authorization` 一致
 - ✅ 任何一方更新后，另一方必须同步更新
 
 **验证方法**：
@@ -68,13 +68,13 @@ description: MCP 连接诊断与恢复。当 MCP 工具不可用时，调用此�
 # 读取原生连接器配置
 cat <agent的MCP配置文件> | python3 -c "import sys,json; d=json.load(sys.stdin); s=list(d['mcpServers'].values())[0]; print(s.get('url',''), s.get('headers',{}).get('Authorization',''))"
 
-# 读取技能包配置
-cat <技能安装目录>/mcp.json | python3 -c "import sys,json; d=json.load(sys.stdin); s=list(d['mcpServers'].values())[0]; print(s.get('url',''), s.get('headers',{}).get('Authorization',''))"
+# 读取 `mcp.json` 配置
+cat <项目根或 ~>/mcp.json | python3 -c "import sys,json; d=json.load(sys.stdin); s=list(d['mcpServers'].values())[0]; print(s.get('url',''), s.get('headers',{}).get('Authorization',''))"
 ```
 
 - ✅ 两个标准都满足 → **直接使用原生 MCP 工具，不得要求用户重新授权**
 - ❌ 标准 1 未满足：原生连接器未配置或未 Trust，**停止业务调用**，引导用户完成配置
-- ❌ 标准 2 未满足：技能包配置与原生连接器不同步，**先同步配置**，再验证连接
+- ❌ 标准 2 未满足：`mcp.json` 配置与原生连接器不同步，**先同步配置**，再验证连接
 - ❌ 两个标准都未满足：**不得使用脚本直连**，必须先完成原生连接器配置
 
 ## 决策入口与认证策略
@@ -89,11 +89,11 @@ cat <技能安装目录>/mcp.json | python3 -c "import sys,json; d=json.load(sys
 
 > ⚠️ **关键说明**：
 > - **宿主注册表 mcp.json**（`<agent的MCP配置文件>`）：宿主从中读取并注册原生 MCP 工具，**配置目标**
-> - **技能包 mcp.json**（`<技能安装目录>/mcp.json`）：脚本从中读取 URL，**仅供脚本使用**
+> - **`mcp.json` 位于项目根或 `~/mcp.json`**：脚本从中读取 URL，**仅供脚本使用**
 > - **必须同步**：两个文件的 `url` 和 `headers.Authorization` 必须一致
 > - OAuth token 由宿主 MCP 设置管理，脚本通过缓存读取
 > - **不要"看到 key 就沿用"**——任何已存在的 key 都必须先验证可用性再决定是否保留
-> - **不要主动询问用户是否有 token**——只有当用户主动提供时，才在 mcp.json 中配置
+> - **不要主动询问用户是否有 token**——只有当用户主动提供时，才在 `mcp.json` 中配置
 
 ## 诊断流程（按顺序执行）
 
@@ -103,17 +103,18 @@ cat <技能安装目录>/mcp.json | python3 -c "import sys,json; d=json.load(sys
 
 **检查流程**：按「连接成功的判定标准」章节的验证方法检查，满足则连接成功，不满足则按该章节指示处理。
 
-### 第 1 步：读 mcp.json 获取配置
+### 第 1 步：读 `mcp.json` 获取配置
 
-> ⚠️ **硬规则**：任何操作之前，**必须先读技能包 `mcp.json`**（`<技能安装目录>/mcp.json`），从 `mcpServers` 的 key 获取真实服务器名。
+> ⚠️ **硬规则**：任何操作之前，**必须先读 `mcp.json`**（位于项目根或 `~/mcp.json`），从 `mcpServers` 的 key 获取真实服务器名。
 > 服务器名因环境/Bundle 而异（如 `enterprise-training`、`coach` 等），**禁止凭直觉猜测**。
+> 如果 `mcp.json` 不存在，从 `mcp.json.example` 复制一份再配置。
 
 ```bash
 # Linux / macOS
-cat <技能安装目录>/mcp.json | python3 -c "import sys,json; print(list(json.load(sys.stdin)['mcpServers'].keys())[0])"
+cat <项目根或 ~>/mcp.json | python3 -c "import sys,json; print(list(json.load(sys.stdin)['mcpServers'].keys())[0])"
 
 # Windows PowerShell
-python -c "import json; f=open(r'<技能安装目录>\mcp.json'); print(list(json.load(f)['mcpServers'].keys())[0])"
+python -c "import json,os; f=open(os.path.join(os.environ['USERPROFILE'],'mcp.json')); print(list(json.load(f)['mcpServers'].keys())[0])"
 ```
 
 记下输出的服务器名（例如 `enterprise-training`），后续配置和验证时使用。
@@ -147,10 +148,9 @@ python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py auth
 复制命令输出的 Authorization header 值（如 `Bearer at_...`），按你的 agent 的标准方式配置 MCP client。
 
 配置参数：
-- **URL**：从技能包的 `mcp.json`（`<技能安装目录>/mcp.json`）的 `mcpServers.*.url` 字段读取
+- **URL**：从 `mcp.json` 的 `mcpServers.*.url` 字段读取
 - **Authorization**：使用 `mcp_diagnose.py auth` 输出的**值部分**（不含 `Authorization:` 标签）
 - **写入目标**：**宿主注册表** `<agent的MCP配置文件>`
-- **同步要求**：配置完成后，必须将相同的 URL 和 Authorization 同步写入技能包 `<技能安装目录>/mcp.json`，确保两个文件的 `url` 和 `headers.Authorization` 一致（见「连接成功的判定标准」标准 2）
 
 **宿主配置示例**：
 
@@ -186,14 +186,14 @@ python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py auth
    - ✅ 成功 → 原生连接器配置成功，能看到工具列表
    - ❌ 仍失败 → 检查配置是否正确，或进入第 4 步进一步排查
 
-2. **标准 2 验证**：检查技能包配置同步
-   比对两个 mcp.json 的 `url` 和 `headers.Authorization`：
+2. **标准 2 验证**：检查 `mcp.json` 配置同步
+   比对 `<agent的MCP配置文件>` 和 `mcp.json` 的 `url` 和 `headers.Authorization`：
    ```bash
    # 读取原生连接器配置
    cat <agent的MCP配置文件> | python3 -c "import sys,json; d=json.load(sys.stdin); s=list(d['mcpServers'].values())[0]; print(s.get('url',''), s.get('headers',{}).get('Authorization',''))"
    
-   # 读取技能包配置
-   cat <技能安装目录>/mcp.json | python3 -c "import sys,json; d=json.load(sys.stdin); s=list(d['mcpServers'].values())[0]; print(s.get('url',''), s.get('headers',{}).get('Authorization',''))"
+   # 读取 `mcp.json` 配置
+   cat <项目根或 ~>/mcp.json | python3 -c "import sys,json; d=json.load(sys.stdin); s=list(d['mcpServers'].values())[0]; print(s.get('url',''), s.get('headers',{}).get('Authorization',''))"
    ```
    - ✅ 一致 → 配置同步，连接成功
    - ❌ 不一致 → 同步配置后再次验证
@@ -220,9 +220,9 @@ python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py tools
 mcp__<真实服务器名>__*
 ```
 
-例如，mcp.json 中服务器名为 `enterprise-training`，则搜 `mcp__enterprise-training__*`。
+例如，`mcp.json` 中服务器名为 `enterprise-training`，则搜 `mcp__enterprise-training__*`。
 
-> ⚠️ **硬规则**：工具搜索**只执行一次**。禁止"换个名字再搜一次"——服务器名必须从 mcp.json 读取，不得凭直觉猜测。
+> ⚠️ **硬规则**：工具搜索**只执行一次**。禁止"换个名字再搜一次"——服务器名必须从 `mcp.json` 读取，不得凭直觉猜测。
 
 - ✅ **查到** → 宿主已注册，但调用仍失败 → 检查认证/token 是否正确
 - ❌ **查不到** → 宿主配置未同步 → 确认用户已完成 Trust/重连；若满足「临时降级规则」的硬性闸门，可临时降级
@@ -247,7 +247,7 @@ OAuth token 有效期约 15 天。当 MCP 工具返回 401 时：
 > **A. 已完成完整修复流程**：
 > 1. **已执行 auth**：已完成浏览器 OAuth 授权，token 已落盘
 > 2. **已执行 configure**：已向宿主注册表 `<agent的MCP配置文件>` 写入服务器配置（含 URL + Authorization）
-> 3. **已同步到技能包配置**：技能包 mcp.json（`<技能安装目录>/mcp.json`）的 URL 和 Authorization 与原生连接器一致
+> 3. **已同步到 `mcp.json`**：`mcp.json` 的 URL 和 Authorization 与原生连接器一致
 > 4. **已请求 Trust**：已明确告知用户"请到宿主连接器页点击 Trust/重连"
 > 5. **用户已尝试 Trust 后仍失败**：用户反馈 Trust 后直接调用仍返回 401/未注册
 >
@@ -297,7 +297,6 @@ python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py --mcp-url
 
 > **路径说明**：示例使用 `<技能安装目录>` 指代技能安装根目录，后接技能名定位具体脚本。如果相对路径找不到脚本，改用绝对路径。
 
-**upload_document.py 不支持的参数**：
-- `--mcp-url`（必须从 mcp.json 读取）
-- `--verbose`（不存在）
-- 仅接受文件路径作为参数：`python3 upload_document.py <文件路径>`
+### upload_document.py 参数说明
+
+`--mcp-url <url>` 仅覆盖 MCP 服务器 URL，`Authorization` 仍从 `mcp.json` 读取，与 `mcp_diagnose.py` 语义一致。

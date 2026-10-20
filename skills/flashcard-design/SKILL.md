@@ -1,5 +1,5 @@
 ---
-name: flashcard_design
+name: flashcard-design
 description: 通过 OmniMay MCP 工具对话式创建/编辑闪卡（考官V2）课程，支持上传文档作为出题素材。自动根据用户权限路由权限分叉（管理员=编辑链接 / 学员=自动练习）。触发：用户要建闪卡课/考官课/出题/改题数/基于文档出题。
 ---
 
@@ -50,8 +50,10 @@ description: 通过 OmniMay MCP 工具对话式创建/编辑闪卡（考官V2）
 **必须**使用脚本上传：
 
 ```bash
-python3 <技能安装目录>/flashcard_design/scripts/upload_document.py <文件路径>
+python3 <技能安装目录>/flashcard-design/scripts/upload_document.py <文件路径> [--mcp-url <url>]
 ```
+
+`--mcp-url <url>` 仅覆盖服务器 URL，`Authorization` 仍从 `mcp.json` 读取。
 
 脚本返回 `{"fileId": 7667, "fileName": "doc.pdf", "status": "ready", ...}`。上传成功后，在建课对话中通过 `metadata.fileIds: [fileId]` 传递。
 
