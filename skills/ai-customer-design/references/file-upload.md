@@ -86,7 +86,7 @@ elif result["status"] == "failed":
 
 **"MCP authentication failed"**：
 - 先检查环境（test vs 生产）
-- 使用 coach-mcp-connect 技能重新认证
+- 按 [MCP 连接诊断与恢复](mcp-connection.md) 重新认证
 
 **"Cannot connect to MCP server"**：
 - 检查 mcp.json 配置

@@ -1,17 +1,12 @@
----
-name: coach-mcp-connect
-description: MCP 连接诊断与恢复。当 MCP 工具不可用时，调用此技能恢复连接。
----
+# MCP 连接诊断与恢复
 
-# Coach MCP Connect
-
-当 MCP 工具无法使用时，此技能帮助用户恢复 MCP 连接。
+当培训业务 MCP 工具无法使用时，按以下流程恢复连接。
 
 ## 快速判定表
 
 | 现象 | 结论 | 动作 |
 |------|------|------|
-| 401 / invalid_token | token 过期或未配置 | 运行 `auth` → 复制 token → 配置 MCP client |
+| 401 / invalid_token | token 过期或未配置 | 按认证方式更新 API key，或在 OAuth 路径运行 `auth` → 配置 MCP client |
 | 403 | 权限不足 | 联系管理员 |
 | 406 Not Acceptable | 协议头问题，与认证无关 | **不要重跑 auth**，检查脚本 Accept 头是否包含 `application/json, text/event-stream` |
 | 连接超时 / DNS 失败 | 网络不通 | 检查网络/代理/VPN |
@@ -29,7 +24,7 @@ description: MCP 连接诊断与恢复。当 MCP 工具不可用时，调用此�
 
 **标准链路**（必须按顺序执行）：
 
-1. **auth**：运行 `mcp_diagnose.py auth` → 浏览器 OAuth → 输出 token
+1. **auth**：按 `supported_auth` 顺序完成认证；OAuth 路径运行 `mcp_diagnose.py auth`，token 路径获取并验证 API key
 2. **configure**：将 URL + Authorization 写入**宿主注册表** `<agent的MCP配置文件>`（不是 `mcp.json`）
 3. **reconnect**：在宿主连接器页 Trust/重连（必须用户手动完成）
 4. **native**：宿主注册原生 MCP 工具 → 所有业务调用走原生工具
@@ -42,7 +37,7 @@ description: MCP 连接诊断与恢复。当 MCP 工具不可用时，调用此�
 **脚本的正确用途**：
 - ✅ 取 token（`mcp_diagnose.py auth`）
 - ✅ 诊断连接（`mcp_diagnose.py tools`）
-- ✅ 文件上传（`upload_document.py`：本地文件 I/O + base64）
+- ✅ 文件上传（仅包含 `upload_document.py` 的业务 Skill：本地文件 I/O + base64）
 - ⚠️ 临时降级（仅在满足严格条件时，完成当次业务调用）
 
 **脚本直连的不稳定问题**：
@@ -83,9 +78,10 @@ cat <项目根或 ~>/mcp.json | python3 -c "import sys,json; d=json.load(sys.std
 
 1. **连接成功判定**：检查是否同时满足两个标准（见「连接成功的判定标准」章节），按该章节的判定结果处理
 
-2. **均未配置 / 第 0 步验证失败**：OAuth 是默认首选恢复手段，静态 key 是回退（与 `supported_auth` 数组顺序无关）：
-   - 优先执行 OAuth 流程：`mcp_diagnose.py auth` 完成浏览器 OAuth
-   - OAuth 不可用或失败 → 向用户索要 API key，写入**宿主注册表** `<agent的MCP配置文件>` 的 `headers.Authorization`
+2. **均未配置 / 第 0 步验证失败**：按 `auth-profile.json` 的 `supported_auth` 数组顺序选择认证方式；无 profile 时默认 `token` → `oauth`：
+   - 当前方法为 `token`：先验证已有 Authorization；无效或缺失时向用户索要 API key，写入**宿主注册表** `<agent的MCP配置文件>` 的 `headers.Authorization`
+   - 当前方法为 `oauth`：运行 `mcp_diagnose.py auth` 完成浏览器 OAuth
+   - `supported_auth` 不含 `oauth`：不要发起浏览器授权，按提示配置静态 API key
 
 > ⚠️ **关键说明**：
 > - **宿主注册表 mcp.json**（`<agent的MCP配置文件>`）：宿主从中读取并注册原生 MCP 工具，**配置目标**
@@ -107,7 +103,7 @@ cat <项目根或 ~>/mcp.json | python3 -c "import sys,json; d=json.load(sys.std
 
 > ⚠️ **硬规则**：任何操作之前，**必须先读 `mcp.json`**（位于项目根或 `~/mcp.json`），从 `mcpServers` 的 key 获取真实服务器名。
 > 服务器名因环境/Bundle 而异（如 `enterprise-training`、`coach` 等），**禁止凭直觉猜测**。
-> 如果 `mcp.json` 不存在，从 `mcp.json.example` 复制一份再配置。
+> 如果 `mcp.json` 不存在，从 `<skill-root>/mcp.json.example` 复制一份再配置。
 
 ```bash
 # Linux / macOS
@@ -133,10 +129,12 @@ python -c "import json,os; f=open(os.path.join(os.environ['USERPROFILE'],'mcp.js
 
 ### 第 3 步：修复连接并配置 MCP client
 
-#### 3.1 浏览器授权拿 token
+#### 3.1 浏览器授权拿 token（仅 OAuth 路径）
+
+仅当 `supported_auth` 包含 `oauth` 且按认证顺序需要使用 OAuth 时执行本步骤；静态 API key 路径跳到 3.2。
 
 ```bash
-python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py auth
+python3 <skill-root>/scripts/mcp_diagnose.py auth
 ```
 
 - Token 落盘路径由脚本自动管理（通常位于系统缓存目录下），命令输出会打印完整路径
@@ -145,11 +143,11 @@ python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py auth
 
 #### 3.2 配置 MCP client
 
-复制命令输出的 Authorization header 值（如 `Bearer at_...`），按你的 agent 的标准方式配置 MCP client。
+OAuth 路径复制命令输出的 Authorization header 值（如 `Bearer at_...`）；token 路径使用用户提供的 API key。按你的 agent 的标准方式配置 MCP client。
 
 配置参数：
 - **URL**：从 `mcp.json` 的 `mcpServers.*.url` 字段读取
-- **Authorization**：使用 `mcp_diagnose.py auth` 输出的**值部分**（不含 `Authorization:` 标签）
+- **Authorization**：OAuth 路径使用 `mcp_diagnose.py auth` 输出的**值部分**（不含 `Authorization:` 标签），token 路径使用 API key
 - **写入目标**：**宿主注册表** `<agent的MCP配置文件>`
 
 **宿主配置示例**：
@@ -191,7 +189,7 @@ python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py auth
    ```bash
    # 读取原生连接器配置
    cat <agent的MCP配置文件> | python3 -c "import sys,json; d=json.load(sys.stdin); s=list(d['mcpServers'].values())[0]; print(s.get('url',''), s.get('headers',{}).get('Authorization',''))"
-   
+
    # 读取 `mcp.json` 配置
    cat <项目根或 ~>/mcp.json | python3 -c "import sys,json; d=json.load(sys.stdin); s=list(d['mcpServers'].values())[0]; print(s.get('url',''), s.get('headers',{}).get('Authorization',''))"
    ```
@@ -205,7 +203,7 @@ python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py auth
 #### 3.4 连通性检查（可选诊断）
 
 ```bash
-python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py tools
+python3 <skill-root>/scripts/mcp_diagnose.py tools
 ```
 
 如果成功列出工具，说明 MCP 连接已恢复。此步骤仅用于诊断，非必须。
@@ -229,14 +227,16 @@ mcp__<真实服务器名>__*
 
 ## Token 过期处理
 
-OAuth token 有效期约 15 天。当 MCP 工具返回 401 时：
+使用 OAuth 时，token 有效期约 15 天。当 MCP 工具返回 401 时：
 
 1. 运行 `mcp_diagnose.py auth`（重新完成浏览器 OAuth 授权）
 2. 复制输出的 Authorization header 值（如 `Bearer at_...`）
 3. 更新你的 MCP client 配置
 4. 重新连接/重试
 
-> 💡 **提示**：如果重新授权后仍然 401，检查宿主注册表 `<agent的MCP配置文件>` 中的 URL 是否正确。
+使用静态 API key 时，401 应通过更新有效 key 处理；除非 profile 允许且明确切换认证方式，否则不要改走 OAuth。
+
+> 💡 **提示**：如果更新认证信息后仍然 401，检查宿主注册表 `<agent的MCP配置文件>` 中的 URL 是否正确。
 
 ## 临时降级规则
 
@@ -245,7 +245,7 @@ OAuth token 有效期约 15 天。当 MCP 工具返回 401 时：
 > ⚠️ **硬性闸门**（必须**全部**满足才可进入降级判定）：
 >
 > **A. 已完成完整修复流程**：
-> 1. **已执行 auth**：已完成浏览器 OAuth 授权，token 已落盘
+> 1. **已完成认证**：OAuth 路径已授权且 token 已落盘，或 token 路径已配置并验证有效 API key
 > 2. **已执行 configure**：已向宿主注册表 `<agent的MCP配置文件>` 写入服务器配置（含 URL + Authorization）
 > 3. **已同步到 `mcp.json`**：`mcp.json` 的 URL 和 Authorization 与原生连接器一致
 > 4. **已请求 Trust**：已明确告知用户"请到宿主连接器页点击 Trust/重连"
@@ -281,7 +281,7 @@ OAuth token 有效期约 15 天。当 MCP 工具返回 401 时：
 
 ## 架构边界
 
-- **脚本通道**：取 token（`mcp_diagnose.py auth`）+ 诊断（`mcp_diagnose.py tools`）+ 文件上传（`upload_document.py`：本地文件 I/O + base64）+ 经声明的临时降级（`call_tool()`）
+- **脚本通道**：取 token（`mcp_diagnose.py auth`）+ 诊断（`mcp_diagnose.py tools`）+ 文件上传（仅包含 `upload_document.py` 的业务 Skill）+ 经声明的临时降级（`call_tool()`）
 - **业务工具**（create / update / get / status / task / organization 等）：**默认且长期走宿主原生 MCP 工具**；MCP client 配置完成并重连后，禁止继续用脚本跑业务
 
 ## 命令参数说明
@@ -290,13 +290,13 @@ OAuth token 有效期约 15 天。当 MCP 工具返回 401 时：
 
 ```bash
 # Linux / macOS
-python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py auth
-python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py auth --status
-python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py --mcp-url https://mcp.example.com/coach/mcp auth
+python3 <skill-root>/scripts/mcp_diagnose.py auth
+python3 <skill-root>/scripts/mcp_diagnose.py auth --status
+python3 <skill-root>/scripts/mcp_diagnose.py --mcp-url https://mcp.example.com/coach/mcp auth
 ```
 
-> **路径说明**：示例使用 `<技能安装目录>` 指代技能安装根目录，后接技能名定位具体脚本。如果相对路径找不到脚本，改用绝对路径。
+> **路径说明**：`<skill-root>` 指当前业务 Skill 的安装目录。如果相对路径找不到脚本，改用绝对路径。
 
-### upload_document.py 参数说明
+### upload_document.py 参数说明（仅包含该脚本的业务 Skill）
 
 `--mcp-url <url>` 仅覆盖 MCP 服务器 URL，`Authorization` 仍从 `mcp.json` 读取，与 `mcp_diagnose.py` 语义一致。

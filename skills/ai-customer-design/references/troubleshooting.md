@@ -32,7 +32,7 @@ HTTP 200 + `code=20000` + `results.errorCode/errorMessage`：
 
 | 错误 | 原因 | 处理 |
 |------|------|------|
-| 401 / 未认证 / invalid_token | 未登录或认证过期 | **立即停止当前步骤**，调用 `coach-mcp-connect` 技能恢复连接；重连成功后**重试失败的调用**，不要跳过失败步骤继续执行 |
+| 401 / 未认证 / invalid_token | 未登录或认证过期 | **立即停止当前步骤**，按 [MCP 连接诊断与恢复](mcp-connection.md) 恢复连接；重连成功后**重试失败的调用**，不要跳过失败步骤继续执行 |
 | 50003 会话创建失败 | 建课/改课完成后 **<60s** 内发的 update 被拒（冷却期） | 等 60s 后重试，最多 3 次 |
 | 43503 课程正在生成中 | 同课程已有任务进行中 | 等待当前任务完成（轮询 update_status） |
 | 42902 频率超限 | 在飞任务超上限（≤3）或 submit 频率超 10/min | 等待后重试 |
@@ -73,7 +73,7 @@ HTTP 200 + `code=20000` + `results.errorCode/errorMessage`：
 任何 MCP 调用返回 401 / 未认证 / invalid_token 时：
 
 1. 停止当前步骤
-2. 调用 `coach-mcp-connect` 技能恢复连接
+2. 按 [MCP 连接诊断与恢复](mcp-connection.md) 恢复连接
 3. 重连成功后，**重试刚才失败的调用**
 4. 不要跳过失败的步骤继续执行
 

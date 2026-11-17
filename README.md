@@ -2,11 +2,11 @@
 
 ![Cover](assets/cover.jpg)
 
-> 深维智信 AI 教练技能仓库 — 销售陪练 · 学习闪卡 · 课程推荐 · MCP 连接诊断。让 AI 成为你的专属销售教练：你说需求，AI 教练帮你建课、出题、推荐、诊断。
+> 深维智信 AI 教练技能仓库 — 销售陪练 · 学习闪卡 · 课程推荐。让 AI 成为你的专属销售教练：你说需求，AI 教练帮你建课、出题和推荐课程。
 
 深维智信将销售培训与学习场景的最佳实践提炼为标准化的 AI 技能套件，覆盖从课程设计、资料上传、练习交付到学习闪卡生成的完整流程。每个技能遵循标准 `SKILL.md` 格式，兼容任何支持 Agent Skills 的 AI 工具；同时打包为插件，可在 Claude Code 中一键安装。
 
-每个技能是一个独立文件夹（`SKILL.md` + 参考资料）。安装到 AI 工具后，AI 会在匹配场景自动加载对应技能——无需手动编写 prompt。
+每个技能是一个独立文件夹（`SKILL.md` + 脚本 + 参考资料 + 配置模板）。安装到 AI 工具后，AI 会在匹配场景自动加载对应技能——无需手动编写 prompt。
 
 ## Quick Install
 
@@ -18,16 +18,15 @@ npx skills add omnimay/coach_skills
 
 ## What's Inside
 
-本仓库包含 4 个技能，覆盖销售培训与学习场景的核心能力：
+本仓库包含 3 个技能，覆盖销售培训与学习场景的核心能力：
 
 | 技能 | 功能 | 适用场景 |
 |------|------|---------|
 | [`ai-customer-design`](skills/ai-customer-design/) | 创建/修改培训课程、上传资料、生成练习链接 | 销售陪练、课程设计、资料管理 |
 | [`flashcard-design`](skills/flashcard-design/) | 对话式创建/编辑闪卡课程，支持文档出题 | 学习闪卡、知识考核、权限路由 |
 | [`recommend-courses`](skills/recommend-courses/) | 处理分析报告并下发培训任务：从报告中提取学员短板，自动匹配或创建课程，批量下发任务 | 分析报告处理、短板提取、课程匹配、任务下发、培训闭环 |
-| [`coach-mcp-connect`](skills/coach-mcp-connect/) | MCP 连接诊断与恢复 | 连接问题排查、配置修复 |
 
-4 个技能，覆盖销售培训全流程。
+3 个技能，覆盖销售培训全流程。
 
 ## Installation
 
@@ -73,10 +72,9 @@ git clone https://github.com/omnimay/coach_skills.git
 3. **任务下发**：向指定学员批量下发培训任务
 4. **培训闭环**：跟踪任务完成进度
 
-### MCP 连接诊断
+### 内置 MCP 连接诊断
 
-1. **诊断**：AI 自动检测 MCP 连接问题
-2. **恢复**：按指引修复配置，恢复连接
+每个业务技能都自带 `references/mcp-connection.md`、`scripts/mcp_diagnose.py` 和 `mcp.json.example`。连接失败时，AI 按当前技能的诊断文档处理，无需安装额外的连接技能。
 
 ## MCP Enhancement（可选）
 
@@ -103,13 +101,15 @@ git clone https://github.com/omnimay/coach_skills.git
 
 ```bash
 # 更新本项目所有技能
-npx skills update ai-customer-design flashcard-design recommend-courses coach-mcp-connect
+npx skills update ai-customer-design flashcard-design recommend-courses
 
 # 或更新单个技能
 npx skills update ai-customer-design
 ```
 
 更新后，宿主工具（Claude Code 等）下次会话自动加载新版本。
+
+旧版曾提供独立的 `coach-mcp-connect` 技能。升级后如仍看到该旧技能，可在确认没有本地修改后按原安装方式清理旧副本；不要删除 `~/.config/coach-mcp-connect` 或 Windows 对应目录，业务技能仍使用其中的 OAuth 缓存。
 
 ## License & Notices
 

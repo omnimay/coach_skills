@@ -57,7 +57,7 @@ python3 <技能安装目录>/flashcard-design/scripts/upload_document.py <文件
 
 脚本返回 `{"fileId": 7667, "fileName": "doc.pdf", "status": "ready", ...}`。上传成功后，在建课对话中通过 `metadata.fileIds: [fileId]` 传递。
 
-> 脚本报错时先使用 coach-mcp-connect 技能重新连接。完整错误处理与状态说明见 [file-reference.md](references/file-reference.md)。
+> 脚本报错时先按 [MCP 连接诊断与恢复](references/mcp-connection.md) 重新连接。完整错误处理与状态说明见 [file-reference.md](references/file-reference.md)。
 
 ### 强制决策规则
 

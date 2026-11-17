@@ -19,12 +19,12 @@ metadata:
 | 报告结构化提取、标签匹配、打标回写、找人、成员任务下发契约、确认门 | **本技能** |
 | 建课 / 改课工作流、课程简报、文档上传、完成判定、链接二维码交付 | 委托 **ai-customer-design** 技能 |
 | 闪卡课（考官V2）建课 / 改题工作流、出题素材上传、完成判定、学习链接交付 | 委托 **flashcard-design** 技能 |
-| MCP 连接恢复 | 委托 **coach-mcp-connect** 技能 |
+| MCP 连接恢复 | 按本技能 [MCP 连接诊断与恢复](references/mcp-connection.md) 处理 |
 
 ## 前提
 
 - 宿主 MCP 客户端已连接 enterprise-training 服务；工具经宿主原生 MCP 工具调用（`training.*`、`organization.*`）
-- MCP 工具不可用时调用 `coach-mcp-connect` 技能恢复连接
+- MCP 工具不可用时按 [MCP 连接诊断与恢复](references/mcp-connection.md) 恢复连接
 - 业务数据在工具返回的 structuredContent 顶层，无 `.data` 信封
 - **参数名以宿主 tools/list 实际 schema 为准**——本技能工具存在 snake/camel 混用（如 `label_batch_create` 用 `course_id`、`label_list` 用 `courseId`），不要凭风格推断
 

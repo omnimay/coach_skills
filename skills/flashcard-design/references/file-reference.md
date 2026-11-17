@@ -26,10 +26,10 @@ python3 <技能安装目录>/flashcard-design/scripts/upload_document.py <文件
 
 | 错误 | 原因 | 处理 |
 |------|------|------|
-| `mcp.json not found` | mcp.json 缺失 | 复制 `coach-mcp-connect/mcp.json.example` 为 mcp.json 并填入真实 key |
-| `MCP authentication failed` | 认证失败 | 使用 coach-mcp-connect 技能重新连接 |
+| `mcp.json not found` | mcp.json 缺失 | 复制 `<skill-root>/mcp.json.example` 为 mcp.json 并填入真实 key |
+| `MCP authentication failed` | 认证失败 | 按 [MCP 连接诊断与恢复](mcp-connection.md) 重新连接 |
 | `File too large` | 文件超过 50MB | 压缩文件或走 PC 端直传 |
-| `HTTP 401/403` | 权限问题 | 使用 coach-mcp-connect 技能排查 |
+| `HTTP 401/403` | 权限问题 | 按 [MCP 连接诊断与恢复](mcp-connection.md) 排查 |
 
 ## 上传参数（脚本内部处理）
 

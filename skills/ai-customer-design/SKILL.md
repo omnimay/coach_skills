@@ -20,20 +20,20 @@ metadata:
 
 建课前先**直接调用**一次轻量只读工具（如 `training.organization.tree`）验证连接：
 - ✅ 调用成功 → 连接正常，直接建课
-- ❌ 调用失败 → **不要自行排查，立即调用 `coach-mcp-connect` 技能修复连接**
-  - 401/403 → 认证问题，coach-mcp-connect 处理
-  - 工具不存在/不可用 → 注册问题，coach-mcp-connect 处理
-  - 网络超时/其他 → 连接问题，coach-mcp-connect 处理
+- ❌ 调用失败 → **立即按 [MCP 连接诊断与恢复](references/mcp-connection.md) 处理**
+  - 401/403 → 认证问题，按诊断流程处理
+  - 工具不存在/不可用 → 注册问题，按诊断流程处理
+  - 网络超时/其他 → 连接问题，按诊断流程处理
 
 > ⚠️ **为什么用直接调用而不是工具搜索**：
 > 工具搜索按名字模式匹配，服务器名猜错就产生假阴性（误判为"未注册"）。
 > 直接调用给出具体错误码（401/403/超时/不存在），判断明确、无歧义。
 > **工具搜索仅用于修复后验证原生工具是否已注册**，不作为连接检查手段。
 
-> **连接问题处理**：直接调用 MCP 工具失败时，**立即调用 `coach-mcp-connect` 技能修复连接**，不得自行降级到脚本直连。
+> **连接问题处理**：直接调用 MCP 工具失败时，**立即按本技能的诊断流程修复连接**，不得自行降级到脚本直连。
 > 
 > ❌ **禁止**：在连接失败时直接使用脚本通道完成业务调用
-> ✅ **正确做法**：调用 coach-mcp-connect 技能，按其流程完成原生 MCP 连接器配置
+> ✅ **正确做法**：按 [MCP 连接诊断与恢复](references/mcp-connection.md) 完成原生 MCP 连接器配置
 
 ## AI 客户异步工具集（RFC-0014）
 
@@ -209,7 +209,7 @@ python3 <技能安装目录>/ai-customer-design/scripts/upload_document.py <文�
 
 脚本返回 `{"fileId": 7667, "fileName": "doc.pdf", "status": "ready", ...}`。上传成功后，在建课对话中通过 `metadata.fileIds: [fileId]` 传递。
 
-> 脚本报错时先使用 coach-mcp-connect 技能重新连接。完整错误处理与状态说明见 [file-upload.md](references/file-upload.md)。
+> 脚本报错时先按 [MCP 连接诊断与恢复](references/mcp-connection.md) 重新连接。完整错误处理与状态说明见 [file-upload.md](references/file-upload.md)。
 
 ### 强制决策规则
 
@@ -252,7 +252,7 @@ python3 <技能安装目录>/ai-customer-design/scripts/render_qr.py '<练习链
 3. **富媒体卡片 / 附件** —— 宿主提供图片卡片、文件卡片等富媒体附件能力时，把 PNG 作为附件/卡片嵌入。
 4. **输出文件路径 + 文字说明** —— 当宿主既不能渲染图片、也不能 markdown 渲染图片时，**必须**把脚本打印的 PNG 绝对路径原文输出，并明确告知用户"二维码图片已生成，路径：<path>，可在本地打开查看/扫码"。这是最后的兜底，但**绝不可省略**——没有它用户根本找不到图片。
 
-> 路径说明：`render_qr.py` 位于 `ai-customer-design` 技能目录下（不是 `coach-mcp-connect`）。
+> 路径说明：`render_qr.py` 位于本技能的 `scripts/` 目录下。
 > `--out` 参数路径相对于**当前工作目录**（cwd），不是脚本目录。
 
 **禁止**：

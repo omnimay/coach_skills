@@ -10,7 +10,7 @@
 5. 输出 JSON 结果
 
 约束：
-- 不能导入 coach-mcp-connect 的代码（技能隔离）
+- 禁止跨 Skill 导入代码（技能隔离）
 - 必须自包含，独立实现认证和 MCP 调用
 - 配置必须与用户 MCP 环境同步
 """
@@ -61,10 +61,10 @@ def _load_mcp_config(mcp_url_override: Optional[str] = None) -> dict:
     if not mcp_json:
         if mcp_url_override:
             print("Error: --mcp-url given but mcp.json not found", file=sys.stderr)
-            print("Need mcp.json to provide Authorization. Copy coach-mcp-connect/mcp.json.example", file=sys.stderr)
+            print("Need mcp.json to provide Authorization. Copy <skill-root>/mcp.json.example", file=sys.stderr)
             sys.exit(1)
         print("Error: mcp.json not found", file=sys.stderr)
-        print("Please copy coach-mcp-connect/mcp.json.example to mcp.json (project root or ~/mcp.json)", file=sys.stderr)
+        print("Please copy <skill-root>/mcp.json.example to mcp.json (project root or ~/mcp.json)", file=sys.stderr)
         print("and fill in the real key. See README First Configuration step 3.", file=sys.stderr)
         sys.exit(1)
 
@@ -135,7 +135,7 @@ def _get_auth_headers(mcp_url: str, config: dict) -> dict:
                 except (json.JSONDecodeError, OSError) as e:
                     print(f"Error: Failed to read tokens.json: {e}", file=sys.stderr)
                     print("Please re-run OAuth authentication:", file=sys.stderr)
-                    print("  python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py auth", file=sys.stderr)
+                    print("  python3 <skill-root>/scripts/mcp_diagnose.py auth", file=sys.stderr)
                     sys.exit(1)
                 access_token: Optional[str] = tokens.get("access_token")
                 if access_token:
@@ -147,8 +147,8 @@ def _get_auth_headers(mcp_url: str, config: dict) -> dict:
         print("请在 mcp.json 的 headers.Authorization 中配置 API key（通常以 sk_ 开头）。", file=sys.stderr)
     else:
         print("Error: MCP authentication failed.", file=sys.stderr)
-        print("Please run coach-mcp-connect skill to reconnect:", file=sys.stderr)
-        print("  python3 <技能安装目录>/coach-mcp-connect/scripts/mcp_diagnose.py auth", file=sys.stderr)
+        print("Please follow references/mcp-connection.md to reconnect:", file=sys.stderr)
+        print("  python3 <skill-root>/scripts/mcp_diagnose.py auth", file=sys.stderr)
     sys.exit(1)
 
 
