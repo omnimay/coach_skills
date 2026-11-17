@@ -1,6 +1,6 @@
 ---
 name: ai-customer-design
-description: 创建和修改公司培训课程、上传课程资料、查询课程并生成练习链接。触发关键词：建课、AI 客户课程、AI 设计师对话、改课、查询培训课程、生成练习链接。
+description: 通过 MCP 工具创建和修改公司培训课程（AI 客户课程）：上传课程资料、异步对话生成课程内容、轮询任务状态、验证建课结果并生成练习链接与二维码。触发关键词：建课、AI 客户课程、AI 设计师对话、改课、查询培训课程、生成练习链接。不适用：与公司培训课程无关的对话、其他产品线课程（如闪卡/考官V2 课程）。
 metadata:
   description_zh: 创建和修改公司培训课程，上传资料并生成练习入口。
   description_en: Create and edit company training courses and generate practice links.
@@ -19,21 +19,21 @@ metadata:
 ### 连接检查规则
 
 建课前先**直接调用**一次轻量只读工具（如 `training.organization.tree`）验证连接：
-- ✅ 调用成功 → 连接正常，直接建课
-- ❌ 调用失败 → **立即按 [MCP 连接诊断与恢复](references/mcp-connection.md) 处理**
+- 调用成功 → 连接正常，直接建课
+- 调用失败 → **立即按 [MCP 连接诊断与恢复](references/mcp-connection.md) 处理**
   - 401/403 → 认证问题，按诊断流程处理
   - 工具不存在/不可用 → 注册问题，按诊断流程处理
   - 网络超时/其他 → 连接问题，按诊断流程处理
 
-> ⚠️ **为什么用直接调用而不是工具搜索**：
+> **为什么用直接调用而不是工具搜索**：
 > 工具搜索按名字模式匹配，服务器名猜错就产生假阴性（误判为"未注册"）。
 > 直接调用给出具体错误码（401/403/超时/不存在），判断明确、无歧义。
 > **工具搜索仅用于修复后验证原生工具是否已注册**，不作为连接检查手段。
 
 > **连接问题处理**：直接调用 MCP 工具失败时，**立即按本技能的诊断流程修复连接**，不得自行降级到脚本直连。
 > 
-> ❌ **禁止**：在连接失败时直接使用脚本通道完成业务调用
-> ✅ **正确做法**：按 [MCP 连接诊断与恢复](references/mcp-connection.md) 完成原生 MCP 连接器配置
+> **禁止**：在连接失败时直接使用脚本通道完成业务调用
+> **正确做法**：按 [MCP 连接诊断与恢复](references/mcp-connection.md) 完成原生 MCP 连接器配置
 
 ## AI 客户异步工具集（RFC-0014）
 
@@ -44,7 +44,7 @@ metadata:
 
 | 工具 | 用途 | 关键参数 |
 |------|------|---------|
-| `training.ai_customer.create` | 创建课程（权限分叉：管理员返回 editUrl/manageUrl，学员返回 courseId）<br>⚠️ **editUrl/manageUrl 仅作内部记录，禁止展示给用户**（实测为打不开的错误链接，2026-09-24），唯一可交付链接是 Step 5 的练习链接 | `{}` |
+| `training.ai_customer.create` | 创建课程（权限分叉：管理员返回 editUrl/manageUrl，学员返回 courseId）<br>**editUrl/manageUrl 仅作内部记录，禁止展示给用户**（实测为打不开的错误链接，2026-09-24），唯一可交付链接是 Step 5 的练习链接 | `{}` |
 | `training.ai_customer.update` | 异步对话（返回 taskId，后台生成分钟级完成） | `{"courseId":123,"message":"..."}` |
 | `training.ai_customer.update_status` | 轮询任务状态（每 5s 一次直到 done/failed） | `{"courseId":123,"taskId":"uuid"}` |
 | `training.ai_customer.get` | 读取课程完整配置（需编辑权限） | `{"courseId":123}` |
@@ -92,8 +92,8 @@ HTTP 200 + `code=20000` 为业务成功，`code≠20000` 为业务失败。错�
 写库完成与状态翻转存在竞态，`update_status` 报 failed 时内容可能已写入成功。按以下步骤处理：
 
 1. **验证课程是否已就绪**：调用 `ai_customer.get` 检查
-   - ✅ `status=create_status_created` 且 `stages.length > 0` → 视为实际成功，无需重试
-   - ❌ 确认未完成 → 继续步骤 2
+   - `status=create_status_created` 且 `stages.length > 0` → 视为实际成功，无需重试
+   - 确认未完成 → 继续步骤 2
 
 2. **等待冷却**：等待 ≥60s
 
@@ -116,21 +116,21 @@ Step 2: training.ai_customer.update({"courseId":<id>, "message":"<课程简报>"
 Step 3: training.ai_customer.update_status({"courseId":<id>, "taskId":"xxx"}) 轮询
   → 每 5 秒调用一次
   → status="done" → Step 4
-  → status="failed" → 读 errorMessage，按错误码表处理（⚠️ 50002 须先用 `ai_customer.get` 验证内容是否已就绪，见错误码表）
+  → status="failed" → 读 errorMessage，按错误码表处理（注意：50002 须先用 `ai_customer.get` 验证内容是否已就绪，见错误码表）
   → 43504（任务过期）→ 重新 Step 2
-  → ⚠️ 轮询期间全程静默，禁止询问用户"还在吗"
+  → 注意：轮询期间全程静默，禁止询问用户"还在吗"
 
 Step 4: training.ai_customer.get({"courseId":<id>}) → 验证课程内容
   → 检查 status="create_status_created" 且 stages.length > 0
-  → ✅ 建课完成 → Step 5
-  → ⚠️ 内容未就绪 → 等 30s 再查（agent 可能仍在写入），轮询最长 20 分钟
+  → 建课完成 → Step 5
+  → 内容未就绪 → 等 30s 再查（agent 可能仍在写入），轮询最长 20 分钟
 
 Step 5: training.task.create_open_project({"courseId":<id>}) → 拿到 link → 渲染二维码
 ```
 
 **多轮对话**：Step 2-3 可重复调用。agent 可能先提问/出计划，需用户确认后再调 update 发送确认消息。
 
-> ⚠️ **实测经验**：首次 `update` 几乎必然返回计划卡片（plan card）要求确认，`update_status` 秒返 `done` 但课程并未真正创建。必须发送第二轮 `update`（如"确认，请直接建课。"或"确认，开始生成。"）才触发实际内容生成。这是**预期行为**，不是错误。
+> **实测经验**：首次 `update` 几乎必然返回计划卡片（plan card）要求确认，`update_status` 秒返 `done` 但课程并未真正创建。必须发送第二轮 `update`（如"确认，请直接建课。"或"确认，开始生成。"）才触发实际内容生成。这是**预期行为**，不是错误。
 >
 > **时间差异**：第一轮 update 秒返 done（<5s），第二轮 update 触发内容生成（5-10 分钟）。改课同理（实际修改约 3-5 分钟）。不要因第一轮秒返就认为建课完成。
 >
@@ -152,7 +152,7 @@ Step 5: training.task.create_open_project({"courseId":<id>}) → 拿到 link →
 | message 长度 | ≤8000 Unicode 字符 | 超出返回 `40001` |
 | metadata 键数 | ≤20 | 超出返回 `40001`（含 fileIds 算 1 个键） |
 | 任务记录 TTL | 2 小时 | 过期后查询 status 返回 `43504` |
-| running 超时 | 11 分钟 | 自动标记 failed（errorCode=50002）。⚠️ 实际生成通常 5-10 分钟完成，超时常因"写库完成 vs 状态翻转"竞态导致——`update_status` 报 failed 时内容可能已就绪，**先用 `ai_customer.get` 验证再决定是否重试** |
+| running 超时 | 11 分钟 | 自动标记 failed（errorCode=50002）。注意：实际生成通常 5-10 分钟完成，超时常因"写库完成 vs 状态翻转"竞态导致——`update_status` 报 failed 时内容可能已就绪，**先用 `ai_customer.get` 验证再决定是否重试** |
 | **update 串行** | 禁止并行 | 同一会话的 `update` 调用必须串行，禁止并行发起多次 `update` |
 
 **批量建课**：串行执行，避免超过并发限制。
@@ -162,10 +162,12 @@ Step 5: training.task.create_open_project({"courseId":<id>}) → 拿到 link →
 **唯一可靠判定**：`training.ai_customer.get` 返回的 config 中 `status="create_status_created"` 且 `stages.length > 0`。
 
 **不要依赖**：
-- ❌ `update` 的 response 文字（AI 回复可能说"建课完成"但实际未完成）
-- ❌ `update_status` 的 status="done"（只表示本轮对话结束，不等于课程已创建）
+- `update` 的 response 文字（AI 回复可能说"建课完成"但实际未完成）
+- `update_status` 的 status="done"（只表示本轮对话结束，不等于课程已创建）
 
 **原则：只信 `ai_customer.get` 的字段值。**
+
+> 任务生命周期、进度字段与两种"完成"（对话 done vs 建课完成）的区分详见 [result-and-progress.md](references/result-and-progress.md)。
 
 ### 课程简报（Agent 内部检查清单）
 
@@ -180,14 +182,14 @@ Step 1: training.ai_customer.get({"courseId":<id>}) → 记录当前各字段的
 
 Step 2: training.ai_customer.update({"courseId":<id>, "message":"<修改诉求>"})
   → 秒返 {"taskId":"xxx", "status":"running"}
-  → ⚠️ 建课后改课需等待 ~60s 冷却期，遇到 50003 等 60s 后重试，最多 3 次
+  → 注意：建课后改课需等待 ~60s 冷却期，遇到 50003 等 60s 后重试，最多 3 次
 
 Step 3: training.ai_customer.update_status({"courseId":<id>, "taskId":"xxx"}) 轮询
   → 每 5 秒一次，直到 status="done" 或 "failed"
-  → status="failed" → 按错误码表处理（⚠️ 50002 须先用 `ai_customer.get` 验证内容是否已就绪，见错误码表）
+  → status="failed" → 按错误码表处理（注意：50002 须先用 `ai_customer.get` 验证内容是否已就绪，见错误码表）
 
 Step 4: training.ai_customer.get({"courseId":<id>}) → 验证修改是否真的生效
-  → ⚠️ AI 回复具有误导性！验证原则见「建课完成的判断标准」
+  → 注意：AI 回复具有误导性！验证原则见「建课完成的判断标准」
   → 首轮验证失败先等 30s 再查一次
   → 验证通过 → Step 5
   → 验证失败 → 重试 Step 2-3，最多 3 次，仍无变化 → 告知用户
@@ -209,13 +211,15 @@ python3 <技能安装目录>/ai-customer-design/scripts/upload_document.py <文�
 
 脚本返回 `{"fileId": 7667, "fileName": "doc.pdf", "status": "ready", ...}`。上传成功后，在建课对话中通过 `metadata.fileIds: [fileId]` 传递。
 
-> 脚本报错时先按 [MCP 连接诊断与恢复](references/mcp-connection.md) 重新连接。完整错误处理与状态说明见 [file-upload.md](references/file-upload.md)。
+> **脚本退出码**：0=上传成功且解析完成（status=ready）；1=失败（配置缺失/认证失败/上传失败/解析失败/超时），错误原因打印到 stderr。`render_qr.py` 退出码：0=成功；2=参数或输出路径错误；3=二维码依赖不可用（此时脚本已把原始练习链接打到 stdout，可降级使用）。
+
+> 脚本报错时先按 [MCP 连接诊断与恢复](references/mcp-connection.md) 重新连接。完整错误处理与状态说明见 [file-upload.md](references/file-upload.md)，异常排查见 [troubleshooting.md](references/troubleshooting.md)。
 
 ### 强制决策规则
 
 当用户提供了**原始文档文件**（PDF/Word/PPT/Excel/图片等附件），**必须**走文档上传路径：
-- ✅ 调用 `upload_document.py` 脚本上传 → 拿到 fileId → 在 `ai_customer.update` 中通过 `metadata.fileIds` 传递
-- ❌ 禁止把文档内容提取为纯文字后只通过 `message` 传入（**例外**：当服务端 Office 解析失败且 pandoc 转换后 < 8000 字符时，参考 file-upload.md）
+- 必须：调用 `upload_document.py` 脚本上传 → 拿到 fileId → 在 `ai_customer.update` 中通过 `metadata.fileIds` 传递
+- 禁止：把文档内容提取为纯文字后只通过 `message` 传入（**例外**：当服务端 Office 解析失败且 pandoc 转换后 < 8000 字符时，参考 file-upload.md）
 
 **判断逻辑**（按顺序命中即停）：
 1. 用户已提供原始文档文件 → 强制走文档上传
@@ -230,7 +234,7 @@ python3 <技能安装目录>/ai-customer-design/scripts/upload_document.py <文�
 
 ### ① 渲染并展示二维码**图片**
 
-> ⚠️ **关键要求**：二维码必须是**图片**（PNG），不能是纯文本、ASCII 艺术或 Unicode 字符。
+> **关键要求**：二维码必须是**图片**（PNG），不能是纯文本、ASCII 艺术或 Unicode 字符。
 > **必须使用 agent 自己支持的方式**把图片呈现给用户——不同宿主展示能力不同，agent 需要**自适应**选择可用的方式，而不是机械地只走一条路径。
 
 **渲染脚本**（技能包内，纯本地、无网络）：
@@ -256,12 +260,12 @@ python3 <技能安装目录>/ai-customer-design/scripts/render_qr.py '<练习链
 > `--out` 参数路径相对于**当前工作目录**（cwd），不是脚本目录。
 
 **禁止**：
-- ❌ 只输出链接文本、不渲染二维码图片
-- ❌ 只生成二维码文件但不做任何形式的展示（用户必须能在对话中看到图片，或至少拿到图片路径）
-- ❌ 用纯文本/ASCII/Unicode 字符"画"二维码
-- ❌ 大模型直接生成二维码（必须用 render_qr.py）
-- ❌ 在无法渲染图片的宿主上仍然只走文件读取路径而不走兜底（先试文件读取，确认宿主不支持再降级）
-- ❌ 向用户展示 editUrl/manageUrl（改课一律走对话式 update，不要引导用户去管理页手工编辑）
+- 只输出链接文本、不渲染二维码图片
+- 只生成二维码文件但不做任何形式的展示（用户必须能在对话中看到图片，或至少拿到图片路径）
+- 用纯文本/ASCII/Unicode 字符"画"二维码
+- 大模型直接生成二维码（必须用 render_qr.py）
+- 在无法渲染图片的宿主上仍然只走文件读取路径而不走兜底（先试文件读取，确认宿主不支持再降级）
+- 向用户展示 editUrl/manageUrl（改课一律走对话式 update，不要引导用户去管理页手工编辑）
 
 ### QR 降级处理
 
@@ -301,23 +305,23 @@ QR 生成失败时，不要中断流程——直接告知用户"二维码无法�
 以下工具**禁止使用**，调用会失败或行为不一致：
 
 ### 文件上传类
-- ❌ `training.file.upload`（旧版本，用 `upload_document`）
-- ❌ `training.file.upload_doc`（旧版本，用 `upload_document`）
-- ❌ `training.file.upload_v2`（旧版本，用 `upload_document`）
+- `training.file.upload`（旧版本，用 `upload_document`）
+- `training.file.upload_doc`（旧版本，用 `upload_document`）
+- `training.file.upload_v2`（旧版本，用 `upload_document`）
 
 ### 课程管理类
-- ❌ `course.edit_ai_customer_chat`（旧版本，用 `ai_customer.update`）
-- ❌ `course_chat`（旧版本，用 `ai_customer.update`）
-- ❌ `course.edit`（旧版本，用 `ai_customer.update`）
+- `course.edit_ai_customer_chat`（旧版本，用 `ai_customer.update`）
+- `course_chat`（旧版本，用 `ai_customer.update`）
+- `course.edit`（旧版本，用 `ai_customer.update`）
 
 ### 项目管理类
-- ❌ `project_open_create`（重复，用 `task.create_open_project`）
+- `project_open_create`（重复，用 `task.create_open_project`）
 
 ### 二维码类
-- ❌ `training.course_qr.render`（不存在，二维码渲染用脚本 `render_qr.py`）
+- `training.course_qr.render`（不存在，二维码渲染用脚本 `render_qr.py`）
 
 ### 组织查询类
-- ❌ `organization.info_get`（**不存在**，用 `training.organization.tree`）
+- `organization.info_get`（**不存在**，用 `training.organization.tree`）
 
 ## 红线
 

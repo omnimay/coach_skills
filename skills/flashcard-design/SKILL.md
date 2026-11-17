@@ -1,6 +1,6 @@
 ---
 name: flashcard-design
-description: 通过 OmniMay MCP 工具对话式创建/编辑闪卡（考官V2）课程，支持上传文档作为出题素材。自动根据用户权限路由权限分叉（管理员=编辑链接 / 学员=自动练习）。触发：用户要建闪卡课/考官课/出题/改题数/基于文档出题。
+description: 通过 OmniMay MCP 工具对话式创建/编辑闪卡（考官V2）课程：上传文档素材、自动出题、轮询任务状态、验证题目并交付学习链接。按用户权限自动路由（管理员=editUrl 编辑链接 / 学员=learnUrl 自动练习）。触发：用户要建闪卡课/考官课、出题、改题数、基于文档出题。不适用：与闪卡/考官V2 课程无关的建课改课、普通问答或纯资料查询。
 ---
 
 # 闪卡（考官V2）MCP 对话式建课/编辑
@@ -24,8 +24,8 @@ description: 通过 OmniMay MCP 工具对话式创建/编辑闪卡（考官V2）
 
 | 角色 | useTo | 默认交付物 | learnUrl |
 |---|---|---|---|
-| 管理员（有课程管理权限） | 0 | `editUrl` + `manageUrl` | ❌ 不生成 |
-| 学员（无权限） | 4 | `seriesCourseId` + `learnUrl`（done 后经 update_status 返回） | ✅ 内容生成后 |
+| 管理员（有课程管理权限） | 0 | `editUrl` + `manageUrl` | 不生成 |
+| 学员（无权限） | 4 | `seriesCourseId` + `learnUrl`（done 后经 update_status 返回） | 内容生成后 |
 
 - 管理员：`editUrl` / `manageUrl` 禁止展示给用户（改课一律走对话式 update，不引导用户去管理页手工编辑）。
 - 学员：内容生成完成后再交付 `learnUrl`（create 时课程为空）。
@@ -39,7 +39,7 @@ description: 通过 OmniMay MCP 工具对话式创建/编辑闪卡（考官V2）
 3. update(courseId, message 原话, metadata.fileIds)
    → taskId（status=running）
 4. 每 5 秒 update_status 轮询至 done/failed
-5. ⚠ GATE 确认门检测 → 方案请求需走确认轮（→ references/gate-detection.md）
+5. GATE 确认门检测 → 方案请求需走确认轮（→ `references/gate-detection.md`）
 6. get 验题 → 交付 learnUrl（管理员路径禁止展示 editUrl/manageUrl）
 ```
 
@@ -57,13 +57,15 @@ python3 <技能安装目录>/flashcard-design/scripts/upload_document.py <文件
 
 脚本返回 `{"fileId": 7667, "fileName": "doc.pdf", "status": "ready", ...}`。上传成功后，在建课对话中通过 `metadata.fileIds: [fileId]` 传递。
 
+> **脚本退出码**：0=上传成功且解析完成（status=ready）；1=失败（配置缺失/认证失败/上传失败/解析失败/超时），错误原因打印到 stderr。
+
 > 脚本报错时先按 [MCP 连接诊断与恢复](references/mcp-connection.md) 重新连接。完整错误处理与状态说明见 [file-reference.md](references/file-reference.md)。
 
 ### 强制决策规则
 
 当用户提供了**原始文档文件**（PDF/Word/PPT/Excel/图片等附件），**必须**走文档上传路径：
-- ✅ 调用 `upload_document.py` 脚本上传 → 拿到 fileId → 在 `flashcard.update` 中通过 `metadata.fileIds` 传递
-- ❌ 禁止把文档内容提取为纯文字后只通过 `message` 传入
+- 必须：调用 `upload_document.py` 脚本上传 → 拿到 fileId → 在 `flashcard.update` 中通过 `metadata.fileIds` 传递
+- 禁止：把文档内容提取为纯文字后只通过 `message` 传入
 
 **判断逻辑**（按顺序命中即停）：
 1. 用户已提供原始文档文件 → 强制走文档上传
@@ -72,7 +74,7 @@ python3 <技能安装目录>/flashcard-design/scripts/upload_document.py <文件
 
 **fileIds 规则**：正整数数组，≤20 个，不可重复。**每次 update 都应携带 fileIds**（重复携带合法且必要：服务端按指纹去重，并用于陈旧解析恢复）。
 
-## ⚠ GATE 确认门
+## GATE 确认门
 
 done 后的 response 可能是「方案确认请求」或「中间生成状态」而非成品。
 必须向终端用户转述方案并征得同意后再发确认轮。关键词列表与检测逻辑见 → `references/gate-detection.md`。
@@ -104,12 +106,12 @@ done 后的 response 可能是「方案确认请求」或「中间生成状态�
 写库完成与状态翻转存在竞态，`update_status` 报 failed 时内容可能已写入成功。按以下步骤处理：
 
 1. **验证课程是否已就绪**：调用 `flashcard.get` 检查
-   - ✅ 已有题目（`questions.length > 0`）→ 视为实际成功，无需重试
-   - ❌ 确认未完成 → 继续步骤 2
+   - 已有题目（`questions.length > 0`）→ 视为实际成功，无需重试
+   - 确认未完成 → 继续步骤 2
 
 2. **等待冷却**：等待 ≥60s
 
-3. **重试 1 次**：用**同义改写的消息**重试（⚠️ 这是 verbatim 规则的例外：服务端按 `messageSha256` 去重，原文重发会被判重复提交。改写示例：原文"请开始建课" → 改写为"计划没问题，请开始生成课程内容"）
+3. **重试 1 次**：用**同义改写的消息**重试（注意：这是 verbatim 规则的例外：服务端按 `messageSha256` 去重，原文重发会被判重复提交。改写示例：原文"请开始建课" → 改写为"计划没问题，请开始生成课程内容"）
 
 4. **仍失败则报告**：附 `taskId` / `conversationId` 上报
 
@@ -117,6 +119,8 @@ done 后的 response 可能是「方案确认请求」或「中间生成状态�
 
 | 文件 | 内容 |
 |---|---|
+| `references/create-manual.md` | 管理员路径（编辑链接模式）完整工作流 |
+| `references/create-auto.md` | 学员路径（自动练习模式）完整工作流 |
 | `references/gate-detection.md` | GATE 关键词全表 + 检测逻辑 |
 | `references/error-codes.md` | 全量错误码 + 应对 |
 | `references/file-reference.md` | 文件上传/解析/引用详细规则 |

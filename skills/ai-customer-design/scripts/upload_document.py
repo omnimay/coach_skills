@@ -23,6 +23,7 @@ import time
 import argparse
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -64,7 +65,7 @@ def _load_mcp_config(mcp_url_override: Optional[str] = None) -> dict:
             print("Need mcp.json to provide Authorization. Copy <skill-root>/mcp.json.example", file=sys.stderr)
             sys.exit(1)
         print("Error: mcp.json not found", file=sys.stderr)
-        print("Please copy <skill-root>/mcp.json.example to mcp.json (project root or ~/mcp.json)", file=sys.stderr)
+        print("Please copy <skill-root>/mcp.json.example to mcp.json (project root or user home directory)", file=sys.stderr)
         print("and fill in the real key. See README First Configuration step 3.", file=sys.stderr)
         sys.exit(1)
 
@@ -93,12 +94,12 @@ def _get_mcp_url(config: dict) -> str:
 
 
 def _get_env_dir(mcp_url: str) -> str:
-    """根据 MCP URL 生成环境隔离目录（跨平台：Windows 用 APPDATA，macOS/Linux 用 ~/.config）"""
+    """根据 MCP URL 生成环境隔离目录（跨平台：Windows 用 APPDATA，macOS/Linux 用 $HOME/.config）"""
     domain: str = urlparse(mcp_url).netloc
     if sys.platform == "win32":
-        base = os.environ.get("APPDATA", os.path.expanduser("~"))
+        base = os.environ.get("APPDATA", str(Path.home()))
     else:
-        base = os.path.expanduser("~/.config")
+        base = os.path.join(str(Path.home()), ".config")
     env_dir: str = os.path.join(base, "coach-mcp-connect", domain)
     os.makedirs(env_dir, mode=0o700, exist_ok=True)
     return env_dir

@@ -2,7 +2,7 @@
 """render_qr.py — 练习链接二维码渲染器（RFC §3.8 / T10）.
 
 独立 QR 渲染工具：
-- 依赖随包分发的 vendor/segno（无 pip 依赖，干净 venv 可用）
+- 依赖随包分发的 scripts/vendor/segno（无 pip 依赖，干净 venv 可用）
 - 无网络调用、无凭证读写、不实现 MCP
 - 错误码：E-USER-ARGS（参数，exit 2）/ E-HOST-DEP（依赖，exit 3）/ E-USER-OUT（输出路径，exit 2）
 
@@ -20,7 +20,7 @@ from urllib.parse import urlparse
 # Vendor Bootstrap — vendored segno 无需 pip install
 # ============================================================================
 
-_VENDOR_DIR = Path(__file__).resolve().parent.parent / "vendor"
+_VENDOR_DIR = Path(__file__).resolve().parent / "vendor"
 
 segno = None
 if _VENDOR_DIR.is_dir():
