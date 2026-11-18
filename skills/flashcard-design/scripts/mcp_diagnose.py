@@ -25,6 +25,7 @@ import html
 import http.server
 import json
 import os
+from pathlib import Path
 import secrets
 import socket
 import sys
@@ -177,9 +178,9 @@ MCP_VERSION = "2025-03-26"
 REQUEST_TIMEOUT = 30  # 诊断工具不需要长超时
 
 if sys.platform == "win32":
-    CONFIG_DIR = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "coach-mcp-connect")
+    CONFIG_DIR = os.path.join(os.environ.get("APPDATA", str(Path.home())), "coach-mcp-connect")
 else:
-    CONFIG_DIR = os.path.expanduser("~/.config/coach-mcp-connect")
+    CONFIG_DIR = str(Path.home() / ".config" / "coach-mcp-connect")
 
 DEFAULT_CALLBACK_PORT = 8766
 CLIENT_NAME = "coach-mcp-connect-skill"
@@ -588,7 +589,7 @@ def mcp_request(method, params=None, session_id=None, _retry_on_401: bool = True
                             f"Token refresh attempt failed: {e}\n\n"
                             f"The script uses credentials from (in priority order):\n"
                             f"1. headers.Authorization in mcp.json (if configured)\n"
-                            f"2. OAuth token cache (~/.config/coach-mcp-connect/<host>/tokens.json)\n\n"
+                            f"2. OAuth token cache ({os.path.join(CONFIG_DIR, '<host>', 'tokens.json')})\n\n"
                             f"To fix:\n"
                             f"- Run 'mcp_diagnose.py auth' to re-authenticate (refresh token may be expired)\n"
                             f"- Or check mcp.json for an outdated Authorization header\n"
@@ -598,7 +599,7 @@ def mcp_request(method, params=None, session_id=None, _retry_on_401: bool = True
                 "Script authentication failed (401).\n"
                 "The script uses credentials from (in priority order):\n"
                 "1. headers.Authorization in mcp.json (if configured)\n"
-                "2. OAuth token cache (~/.config/coach-mcp-connect/<host>/tokens.json)\n\n"
+                f"2. OAuth token cache ({os.path.join(CONFIG_DIR, '<host>', 'tokens.json')})\n\n"
                 "To fix:\n"
                 "- Run 'mcp_diagnose.py auth' to refresh your OAuth token\n"
                 "- Or check mcp.json for an outdated Authorization header\n"

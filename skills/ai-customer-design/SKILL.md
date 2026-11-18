@@ -1,6 +1,6 @@
 ---
 name: ai-customer-design
-description: 通过 MCP 工具创建和修改公司培训课程（AI 客户课程）：上传课程资料、异步对话生成课程内容、轮询任务状态、验证建课结果并生成练习链接与二维码。触发关键词：建课、AI 客户课程、AI 设计师对话、改课、查询培训课程、生成练习链接。不适用：与公司培训课程无关的对话、其他产品线课程（如闪卡/考官V2 课程）。
+description: 通过 MCP 工具创建和修改公司培训课程（AI 客户课程）：上传课程资料、异步对话生成课程内容、轮询任务状态、验证建课结果并生成练习链接与二维码。Use when 用户要创建或修改公司培训课程（AI 客户课程）、上传资料或生成练习链接；Do not use 与公司培训课程无关的对话或其他产品线课程（如闪卡/考官V2 课程）。触发关键词：建课、AI 客户课程、AI 设计师对话、改课、查询培训课程、生成练习链接。不适用：与公司培训课程无关的对话、其他产品线课程（如闪卡/考官V2 课程）。
 metadata:
   description_zh: 创建和修改公司培训课程，上传资料并生成练习入口。
   description_en: Create and edit company training courses and generate practice links.

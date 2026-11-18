@@ -52,9 +52,9 @@
 - ✅ 用户已在宿主连接器页完成 Trust/重连
 - ✅ 宿主已注册原生 MCP 工具（可通过直接调用 `training.organization.tree` 验证，或通过工具搜索 `mcp__<server_name>__*` 模式看到工具列表）
 
-**标准 2**：`mcp.json` 位于项目根或 `~/mcp.json`，和原生 MCP 连接器配置同步
-- ✅ `mcp.json` 位于项目根或 `~/mcp.json` 的 `url` 与原生连接器 `<agent的MCP配置文件>` 的 `url` 一致
-- ✅ `mcp.json` 位于项目根或 `~/mcp.json` 的 `headers.Authorization` 与原生连接器的 `headers.Authorization` 一致
+**标准 2**：`mcp.json` 位于项目根或 `$HOME/mcp.json`，和原生 MCP 连接器配置同步
+- ✅ `mcp.json` 位于项目根或 `$HOME/mcp.json` 的 `url` 与原生连接器 `<agent的MCP配置文件>` 的 `url` 一致
+- ✅ `mcp.json` 位于项目根或 `$HOME/mcp.json` 的 `headers.Authorization` 与原生连接器的 `headers.Authorization` 一致
 - ✅ 任何一方更新后，另一方必须同步更新
 
 **验证方法**：
@@ -64,7 +64,7 @@
 cat <agent的MCP配置文件> | python3 -c "import sys,json; d=json.load(sys.stdin); s=list(d['mcpServers'].values())[0]; print(s.get('url',''), s.get('headers',{}).get('Authorization',''))"
 
 # 读取 `mcp.json` 配置
-cat <项目根或 ~>/mcp.json | python3 -c "import sys,json; d=json.load(sys.stdin); s=list(d['mcpServers'].values())[0]; print(s.get('url',''), s.get('headers',{}).get('Authorization',''))"
+cat <项目根或 $HOME>/mcp.json | python3 -c "import sys,json; d=json.load(sys.stdin); s=list(d['mcpServers'].values())[0]; print(s.get('url',''), s.get('headers',{}).get('Authorization',''))"
 ```
 
 - ✅ 两个标准都满足 → **直接使用原生 MCP 工具，不得要求用户重新授权**
@@ -85,7 +85,7 @@ cat <项目根或 ~>/mcp.json | python3 -c "import sys,json; d=json.load(sys.std
 
 > ⚠️ **关键说明**：
 > - **宿主注册表 mcp.json**（`<agent的MCP配置文件>`）：宿主从中读取并注册原生 MCP 工具，**配置目标**
-> - **`mcp.json` 位于项目根或 `~/mcp.json`**：脚本从中读取 URL，**仅供脚本使用**
+> - **`mcp.json` 位于项目根或 `$HOME/mcp.json`**：脚本从中读取 URL，**仅供脚本使用**
 > - **必须同步**：两个文件的 `url` 和 `headers.Authorization` 必须一致
 > - OAuth token 由宿主 MCP 设置管理，脚本通过缓存读取
 > - **不要"看到 key 就沿用"**——任何已存在的 key 都必须先验证可用性再决定是否保留
@@ -101,16 +101,12 @@ cat <项目根或 ~>/mcp.json | python3 -c "import sys,json; d=json.load(sys.std
 
 ### 第 1 步：读 `mcp.json` 获取配置
 
-> ⚠️ **硬规则**：任何操作之前，**必须先读 `mcp.json`**（位于项目根或 `~/mcp.json`），从 `mcpServers` 的 key 获取真实服务器名。
+> ⚠️ **硬规则**：任何操作之前，**必须先读 `mcp.json`**（位于项目根或 `$HOME/mcp.json`），从 `mcpServers` 的 key 获取真实服务器名。
 > 服务器名因环境/Bundle 而异（如 `enterprise-training`、`coach` 等），**禁止凭直觉猜测**。
-> 如果 `mcp.json` 不存在，从 `<skill-root>/mcp.json.example` 复制一份再配置。
+> 如果 `mcp.json` 不存在，从 `<skill-root>/templates/mcp.json.example` 复制一份再配置。
 
 ```bash
-# Linux / macOS
-cat <项目根或 ~>/mcp.json | python3 -c "import sys,json; print(list(json.load(sys.stdin)['mcpServers'].keys())[0])"
-
-# Windows PowerShell
-python -c "import json,os; f=open(os.path.join(os.environ['USERPROFILE'],'mcp.json')); print(list(json.load(f)['mcpServers'].keys())[0])"
+cat <项目根或 $HOME>/mcp.json | python3 -c "import sys,json; print(list(json.load(sys.stdin)['mcpServers'].keys())[0])"
 ```
 
 记下输出的服务器名（例如 `enterprise-training`），后续配置和验证时使用。
@@ -191,7 +187,7 @@ OAuth 路径复制命令输出的 Authorization header 值（如 `Bearer at_...`
    cat <agent的MCP配置文件> | python3 -c "import sys,json; d=json.load(sys.stdin); s=list(d['mcpServers'].values())[0]; print(s.get('url',''), s.get('headers',{}).get('Authorization',''))"
 
    # 读取 `mcp.json` 配置
-   cat <项目根或 ~>/mcp.json | python3 -c "import sys,json; d=json.load(sys.stdin); s=list(d['mcpServers'].values())[0]; print(s.get('url',''), s.get('headers',{}).get('Authorization',''))"
+   cat <项目根或 $HOME>/mcp.json | python3 -c "import sys,json; d=json.load(sys.stdin); s=list(d['mcpServers'].values())[0]; print(s.get('url',''), s.get('headers',{}).get('Authorization',''))"
    ```
    - ✅ 一致 → 配置同步，连接成功
    - ❌ 不一致 → 同步配置后再次验证
@@ -300,3 +296,11 @@ python3 <skill-root>/scripts/mcp_diagnose.py --mcp-url https://mcp.example.com/c
 ### upload_document.py 参数说明（仅包含该脚本的业务 Skill）
 
 `--mcp-url <url>` 仅覆盖 MCP 服务器 URL，`Authorization` 仍从 `mcp.json` 读取，与 `mcp_diagnose.py` 语义一致。
+
+### mcp_diagnose.py 退出码
+
+| 退出码 | 含义 |
+|--------|------|
+| 0 | 成功 |
+| 1 | 失败（配置缺失、认证失败、网络错误、解析失败等），原因打印到 stderr |
+| 130 | 用户中断（Ctrl+C） |
