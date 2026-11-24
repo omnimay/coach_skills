@@ -65,6 +65,7 @@ Step 6 找人（名单 → user_id）
 
 Step 7 下发
   training.task.create_open_project 传 courseId + userIds（+可选 endTime/noticeConfig）
+  → 传了 userIds 时必须校验 hasMembers=true；false/缺失 → 判定失败，不交付链接
   → 通知结果以响应 noticeDispatched/noticeReason 为准，向用户复述
 ```
 
@@ -84,7 +85,7 @@ Step 7 下发
 - `label_list` → `labels:[{id, name, isAIGenerated}]`；传 `courseId` 时另有 `courseLabels`
 - `label_batch_create` → `createdLabels`（本次新建的标签）+ `success:true`
 - `batch_resolve` → `results:[{employeeNo, isSuccess, userId, failedReason}]`——未命中项只报 failedReason，**不模糊猜测**
-- `create_open_project` → 通知结果看 `noticeDispatched`/`noticeReason`，不要自行推断
+- `create_open_project` → 传了 `userIds` 时 `hasMembers` 必须为 true，否则判定下发失败、不交付链接；通知结果看 `noticeDispatched`/`noticeReason`，不要自行推断
 
 ## 关键业务规则（不可精简）
 
@@ -97,6 +98,7 @@ Step 7 下发
 7. **40301 不重试**：无任务发布权限，或 userIds 含非本组织/已离职用户——改参数重试无效，向用户报告让用户处理权限或名单。
 8. **找人不反问已有信息**：用户给了工号就不要再问 user_id；给姓名先查组织树；重名列候选让用户选，组织架构确实找不到再要工号，禁止虚构 user_id。
 9. **边界策略**：报告缺「人」或缺「短板」→ 不适用，如实告知；提取 0 学员 → 终止并告知；`batch_resolve` 全部未命中 → 终止不下发；部分未命中 → 只下发命中学员、未命中进人工清单；同工号重复学员 → 合并（短板取并集）。
+10. **成员任务必须核验 `hasMembers`**：传了 `userIds` 的调用，响应 `hasMembers` 必须为 true。为 false 或缺失说明平台把成员任务静默降级成了开放任务（常见于 MCP 网关工具目录未更新）——判定下发失败，不交付链接、不报成功，让用户联系平台侧核对。
 
 ## 详细流程
 

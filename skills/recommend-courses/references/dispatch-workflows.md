@@ -119,7 +119,9 @@
 | `[]`（空数组） | 明示不发（用户明确要求不发通知时用） |
 | 配置数组 | 按配置发：`type`（1=任务开始 / 2=截止提醒）、`channel`（1=飞书 / 2=钉钉卡片 / 3=钉钉待办）、`title`/`content`/`advance_time`/`priority` |
 
-**响应诊断字段**：`noticeDispatched`（bool）+ `noticeReason`（defaulted / opt_out / explicit / not_applicable）——向用户复述通知结果以这两个字段为权威，不要自行推断。
+**响应诊断字段**：`hasMembers`（bool）+ `noticeDispatched`（bool）+ `noticeReason`（defaulted / opt_out / explicit / not_applicable）——传了 `userIds` 时 `hasMembers` 必须为 true；通知结果以 `noticeDispatched`/`noticeReason` 为准，不要自行推断。
+
+**调用后硬校验（防静默降级）**：传了 `userIds` 而响应 `hasMembers=false` 或字段缺失 → 判定下发失败：**不交付链接、不向用户报成功**，说明"平台未按成员名单创建任务（疑似网关工具目录未同步）"，建议平台侧核对后重试。只有不传 `userIds` 的开放任务才允许 `hasMembers=false`。
 
 **错误码**：`40001` 参数无效（含 endTime 格式/过期）；`40301` 无任务发布权限，或 userIds 含非本组织/已离职用户——**两种含义都不要重试**（改参数无效，向用户报告）；`40401` 课程不存在；`41001` 课程已删除。
 
@@ -128,3 +130,5 @@
 ## 实测经验标注（M07）
 
 本文契约要点（通知三态默认发、40301 双含义、tree 成员 id 格式、label 整体替换语义、AND 匹配）适用日期 **2026-09-28**、**测试环境实测**，为阶段性结论；生产环境或服务升级后需复测更新。
+
+**2026-11-23 补充**：成员任务下发依赖目标环境的 MCP 网关工具目录已含 `userIds`。已发现部分环境目录停留在旧版，会把成员任务静默降级为开放任务（响应 `hasMembers=false` 且不报错）。调用侧以 `hasMembers` 硬校验兜底，不以回执 `success` 作为下发成功依据。
